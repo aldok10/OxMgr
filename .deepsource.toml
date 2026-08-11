@@ -1,0 +1,20 @@
+version = 1
+
+[[analyzers]]
+name = "rust"
+
+[[analyzers]]
+name = "javascript"
+
+  [analyzers.meta]
+  environment = ["browser"]
+  plugins = []
+
+[[analyzers]]
+name = "shell"
+
+[[analyzers]]
+name = "docker"
+
+[exclude_patterns]
+files = ["tests/**", "**/tests/**"]
