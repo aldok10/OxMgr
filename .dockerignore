@@ -1,0 +1,8 @@
+target
+.git
+.codebase-memory
+.opencode
+.github
+*.md
+!examples/**/*.toml
+LICENSE

@@ -22,19 +22,21 @@ RUN apk add --no-cache musl-dev build-base
 
 WORKDIR /build
 
-# Cache dependency compilation: copy manifests first, build deps, then source.
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src && echo 'fn main() {}' > src/main.rs && \
-    cargo build --release --locked 2>/dev/null || true
-COPY src ./src
-COPY web ./web
-COPY build.rs .
-RUN touch src/main.rs && cargo build --release --locked
+# Copy entire project source. The .dockerignore excludes target/, .git, etc.
+COPY . .
+
+# Build the release binary.
+# workspace-crate-layout phase 6+: oxmgr depends on oxmgr-daemon, oxmgr-manager,
+# oxmgr-metrics, oxmgr-analytics — all resolved as path deps from workspace Cargo.toml.
+RUN cargo build --release --locked
 
 # ---------------------------------------------------------------------------
 # Runtime stage
 # ---------------------------------------------------------------------------
-FROM alpine:3.20
+# node:22-alpine (rather than plain alpine) because the integration demo
+# manages a Node cluster server (examples/integration/scripts/cluster-server.js).
+# netcat-openbsd stays for the standalone `web-demo` in oxfile.example.toml.
+FROM node:22-alpine
 
 RUN apk add --no-cache netcat-openbsd
 
@@ -45,6 +47,7 @@ WORKDIR /opt/oxmgr
 COPY --from=builder /build/target/release/oxmgr /usr/local/bin/oxmgr
 COPY web/ /opt/oxmgr/web/
 COPY docker/oxfile.example.toml /opt/oxmgr/oxfile.example.toml
+COPY examples/ /opt/oxmgr/examples/
 COPY docker/entrypoint.sh /usr/local/bin/oxmgr-entrypoint
 RUN chmod +x /usr/local/bin/oxmgr-entrypoint
 
@@ -62,7 +65,7 @@ RUN mkdir -p /var/lib/oxmgr/logs && \
 
 USER oxmgr
 
-EXPOSE 46001 8080
+EXPOSE 46001 46002 8080
 
 # The entrypoint `exec`s the daemon, so oxmgr itself becomes PID 1 and handles
 # SIGTERM from `docker stop` natively. No init wrapper is baked into the image:

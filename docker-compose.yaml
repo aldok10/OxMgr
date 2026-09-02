@@ -21,6 +21,10 @@ services:
       dockerfile: Dockerfile
     image: oxmgr:demo
     container_name: oxmgr-demo
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
     # Reap zombies with the container runtime's own init instead of baking an
     # init wrapper into the image. This makes docker-init PID 1 and oxmgr PID 2;
     # docker-init forwards SIGTERM, and oxmgr handles it natively either way, so
@@ -31,7 +35,7 @@ services:
     stop_grace_period: 30s
     ports:
       - "46001:46001"   # web dashboard
-      - "8080:8080"     # example managed web service
+#      - "8081:8080"     # example managed web service (8080 host port is commonly taken)
     environment:
       # Bind the API/dashboard to all interfaces inside the container so the
       # port mapping above can reach it. The daemon IPC stays loopback-only.
@@ -51,7 +55,13 @@ services:
       # Dashboard environment label (e.g. PRODUCTION, DEVELOPMENT, LOCAL)
       OXMGR_DASHBOARD_LABEL: ${OXMGR_DASHBOARD_LABEL:-DEVELOPMENT}
       OXMGR_DASHBOARD_LABEL_COLOR: ${OXMGR_DASHBOARD_LABEL_COLOR:-#eab308}
+      # Static asset directory: index.html loads CSS/JS from these
+      # files at runtime so you can edit them without rebuilding the image.
+      OXMGR_WEB_DIR: /opt/oxmgr/web
     volumes:
+      # Live-mount the local web/ directory into the container so dashboard
+      # edits (CSS, JS, SVG) are picked up without a daemon restart.
+      - ./web:/opt/oxmgr/web
       # Persist managed-process state and logs across restarts. Comment this
       # out (and `docker compose down -v`) to re-run the demo from scratch.
       - oxmgr-data:/var/lib/oxmgr
@@ -67,3 +77,4 @@ services:
 
 volumes:
   oxmgr-data:
+# ── Removed oxmgr-demos for production use-case only ──────────

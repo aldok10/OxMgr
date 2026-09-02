@@ -1,0 +1,110 @@
+#:schema ../../schemas/oxfile.schema.json
+
+# OxMgr integration demo - every failure detector shown at once.
+#
+# Two namespaces:
+#   web       - the healthy side: a 4-instance Node cluster plus a ticker.
+#   chaos-lab - the failing side: leak, spike, crash loops, flaky, "db".
+#
+# Expect, in order (see README.md for the full walkthrough):
+#   1-2 min   restart storm in chaos-lab (crash-a/b, db, flaky all flapping)
+#   1-3 min   crash loop + repeated exit findings (db, crash-a, crash-b)
+#   2-4 min   cpu spike (level departure above) - chaos-lab/spike
+#   ~10 min   memory leak (resource leak) - chaos-lab/leak
+#   steady    cluster listeners api-0..api-3 on :5500..:5503, zero findings
+#
+# Run:
+#   docker compose up --build oxmgr-demos        (see docker-compose.yaml)
+#   or from the repo root:  oxmgr daemon run -c examples/integration/oxfile.demos.toml
+#   dashboard: http://localhost:46002  (user/pass: admin / oxmgr-demo)
+
+version = 1
+
+[defaults]
+restart_policy = "on_failure"
+max_restarts = 100
+# Keep the chaos-lab apps flapping instead of tripping the crash-loop
+# protection limit after 3 failures: the demo is about observing findings.
+crash_restart_limit = 100
+stop_signal = "SIGTERM"
+stop_timeout_secs = 8
+
+# ---------------------------------------------------------------------------
+# web: healthy reference side
+# ---------------------------------------------------------------------------
+
+[[apps]]
+name = "api"
+command = "node ./scripts/cluster-server.js"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "web"
+cluster_mode = true
+cluster_instances = 4
+restart_policy = "on_failure"
+max_memory_mb = 128
+start_order = 10
+
+[[apps]]
+name = "ticker"
+command = "sh ./scripts/exhibit-healthy.sh"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "web"
+restart_policy = "on_failure"
+start_order = 20
+
+# ---------------------------------------------------------------------------
+# chaos-lab: each failure detector gets its exhibit
+# ---------------------------------------------------------------------------
+
+[[apps]]
+name = "leak"
+command = "sh ./scripts/exhibit-leak.sh"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+# ~2 min to reach the limit: the bounded-leak demo. The leak FINDING still
+# matures on its own >=600s window later; the limiter just keeps RSS bounded.
+max_memory_mb = 64
+start_order = 100
+
+[[apps]]
+name = "spike"
+command = "sh ./scripts/exhibit-spike.sh"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+# The busy loop burns one core; on a 4-core host that reads ~25% vs a ~0%
+# baseline - well past the limit and past any departure threshold.
+max_cpu_percent = 25
+start_order = 110
+
+[[apps]]
+name = "crash-a"
+command = "sh ./scripts/exhibit-crash.sh 1"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+restart_policy = "on_failure"
+start_order = 120
+
+[[apps]]
+name = "crash-b"
+command = "sh ./scripts/exhibit-crash.sh 2"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+restart_policy = "on_failure"
+start_order = 130
+
+[[apps]]
+name = "db"
+command = "sh ./scripts/exhibit-crash.sh 3"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+restart_policy = "on_failure"
+start_order = 140
+
+[[apps]]
+name = "flaky"
+command = "sh ./scripts/exhibit-flaky.sh"
+cwd = "/opt/oxmgr/examples/integration"
+namespace = "chaos-lab"
+restart_policy = "on_failure"
+depends_on = ["db"]
+start_order = 150
