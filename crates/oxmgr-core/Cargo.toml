@@ -1,0 +1,19 @@
+[package]
+name = "oxmgr-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "OxMgr core: domain types and pure logic (zero I/O)"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+# NO tokio, NO axum, NO sysinfo, NO nix — zero I/O dependencies.
+# Enforced by scripts/check-crate-layering.sh; do not add them here.
+
+[lints]
+workspace = true

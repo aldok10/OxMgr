@@ -1,0 +1,62 @@
+[package]
+name = "oxmgr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+
+# Phase 0 of workspace-crate-layout: this crate still holds the entire
+# codebase. Later phases extract library crates under crates/ and shrink this
+# manifest to the binary surface only (main, cli, commands, ui, logging, ipc).
+
+[[bin]]
+name = "oxmgr"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace-internal crates (layering enforced by scripts/check-crate-layering.sh)
+oxmgr-core = { workspace = true }
+oxmgr-store = { workspace = true }
+oxmgr-metrics = { workspace = true }
+oxmgr-analytics = { workspace = true }
+oxmgr-manager = { workspace = true }
+oxmgr-daemon = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+croner = { workspace = true }
+dirs = { workspace = true }
+crossterm = { workspace = true }
+json5 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+shell-words = { workspace = true }
+regex = { workspace = true }
+sysinfo = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+flate2 = { workspace = true }
+futures-util = { workspace = true }
+url = { workspace = true }
+base64 = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+# Platform-specific: signal/process/user bindings exist only on Unix targets,
+# so the dependency stays target-scoped here rather than in the shared table.
+nix = { version = "0.31", features = ["signal", "process", "user"] }
+
+[dev-dependencies]
+serial_test = { version = "3.5" }
+tower = { version = "0.5", features = ["util"] }
+futures = { version = "0.3", default-features = false, features = ["executor"] }
+
+[lints]
+workspace = true

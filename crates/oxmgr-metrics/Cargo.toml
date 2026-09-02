@@ -1,0 +1,27 @@
+[package]
+name = "oxmgr-metrics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "OxMgr metrics: host/process/container collection and platform helpers"
+
+[dependencies]
+oxmgr-core = { workspace = true }
+oxmgr-store = { workspace = true }
+
+anyhow = { workspace = true }
+dirs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+shell-words = { workspace = true }
+sysinfo = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+serial_test = { version = "3.5" }
+
+[lints]
+workspace = true

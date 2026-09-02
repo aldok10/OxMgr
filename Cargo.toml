@@ -1,26 +1,42 @@
-[package]
-name = "oxmgr"
+[workspace]
+members = [
+    "crates/oxmgr",
+    "crates/oxmgr-core",
+    "crates/oxmgr-store",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.5.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.95.0"
 authors = ["Vladimir-Urik"]
 license = "MIT"
+repository = "https://github.com/Vladimir-Urik/OxMgr"
 description = "Oxmgr - lightweight language-agnostic process manager"
 
-[dependencies]
-anyhow = "1.0"
-chrono = "0.4"
-clap = { version = "4.6", features = ["derive"] }
-croner = "3.0.1"
-dirs = "6.0"
-crossterm = "0.29"
-json5 = "1.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.11"
-shell-words = "1.1"
-regex = "1.11"
-sysinfo = "0.39"
-thiserror = "2.0"
+[workspace.dependencies]
+# Internal crates are added here as they are extracted; each entry is a path
+# dependency under crates/ (never published to crates.io).
+
+# Core domain types and pure logic (zero I/O — no tokio/axum/sysinfo).
+# Layering is enforced by scripts/check-crate-layering.sh.
+oxmgr-core = { path = "crates/oxmgr-core" }
+
+# Store: event retention, hashing, JS config extraction (core + std only).
+oxmgr-store = { path = "crates/oxmgr-store" }
+
+# Metrics: host/process/container collection (sysinfo allowed here).
+oxmgr-metrics = { path = "crates/oxmgr-metrics" }
+
+# Analytics: deterministic detectors, baselines, history, patterns (tokio allowed for async detectors).
+oxmgr-analytics = { path = "crates/oxmgr-analytics" }
+
+# Manager: process lifecycle, ecosystem import, signal handling.
+oxmgr-manager = { path = "crates/oxmgr-manager" }
+oxmgr-daemon = { path = "crates/oxmgr-daemon" }
+
+# Async runtime
 tokio = { version = "1.52", features = [
     "macros",
     "rt-multi-thread",
@@ -32,22 +48,143 @@ tokio = { version = "1.52", features = [
     "io-util",
     "sync",
 ] }
+
+# HTTP server
+# Feature-scoped: the server surface uses `Path`, `Query`, `Json`, and the
+# axum serve plumbing (`tokio`, `http1`). The default feature set additionally
+# compiles `form`, `matched-path`, `original-uri`, `tower-log` and the `tracing`
+# integration layer — none of which the router exercises (there is no form
+# handling, no matched-path introspection, no original-URI reads, and the
+# daemon's own `tracing` subscriber is independent of axum's `tracing` spans).
+# Each enabled feature ships more compiled code into the release binary, so the
+# enabled set is kept to what the routes actually use.
+axum = { version = "0.8", default-features = false, features = [
+    "http1",
+    "json",
+    "query",
+    "tokio",
+] }
+
+# Serialization
+# `rc` adds Serialize/Deserialize for Arc, which the host snapshot needs: its heavy fields
+# are shared rather than deep-copied on every collection tick. Serialising reads through the
+# pointer, so the wire format is unchanged. Deserialising an Arc does not restore sharing —
+# irrelevant here, since nothing reads a host snapshot back in.
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
 toml = "1.1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+json5 = "1.3"
+
+# Time
+chrono = "0.4"
+
+# CLI
+clap = { version = "4.6", features = ["derive"] }
+
+# Process metrics collection
+# Narrowed from the default feature set, which also pulls in `user`: the daemon never
+# reads `Users` or a process's user id, so that collection and its platform bindings are
+# dead weight in the binary. The other four are all used — `system` for processes, memory
+# and CPU, `disk` for filesystem capacity, `network` for interfaces, `component` for
+# temperatures.
+sysinfo = { version = "0.39", default-features = false, features = [
+    "component",
+    "disk",
+    "network",
+    "system",
+] }
+
+# Scheduling / cron
+croner = "3.0.1"
+
+# Paths / dirs
+dirs = "6.0"
+
+# Terminal UI
+crossterm = "0.29"
+
+# Hashing
+sha2 = "0.11"
+
+# Shell parsing
+shell-words = "1.1"
+
+# Regex
+regex = "1.11"
+
+# Compression
 flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
+
+# Async stream utilities
+futures-util = "0.3"
+
+# URL parsing
 url = "2.5"
+
+# Encoding
 base64 = "0.23.1"
 
-[target.'cfg(unix)'.dependencies]
-nix = { version = "0.31", features = ["signal", "process", "user"] }
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
 
-[dev-dependencies]
-serial_test = "3.5"
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [profile.release]
-opt-level = "s"
+opt-level = "z"
 lto = true
 codegen-units = 1
-panic = "abort"
 strip = true
+panic = "abort"
+
+[workspace.lints.rust]
+# Catch-all: matches the old `-D warnings` flag for all rustc lint groups.
+warnings = "deny"
+
+[workspace.lints.clippy]
+# Every `unsafe` block must carry a preceding `// SAFETY:` comment naming the
+# invariant that makes it sound and who upholds it. Without this, an `unsafe`
+# block added without a justification would only be caught by review, not by
+# the build. The lint is not in clippy's default set, so this is an explicit
+# opt-in; it fires on any `unsafe` block whose preceding comment does not start
+# with `SAFETY:`.
+undocumented_unsafe_blocks = "deny"
+
+# Detects locks held across await points; a sync Mutex held across .await 
+# would block the runtime worker and could lead to deadlock.
+await_holding_lock = "deny"
+
+# Numerics: detect potential narrowing, precision loss, or sign loss
+# that could affect verdict accuracy in decision paths. 
+# Each suppression must carry a reason comment.
+cast_possible_truncation = "deny"
+cast_precision_loss = "deny"
+cast_sign_loss = "deny"
+
+# Suppression audit: enforce per-site scope and documented reasons.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+# Panic-freedom (rust-panic-discipline): the release profile sets `panic = "abort"`,
+# so a panic anywhere aborts the supervisor — there is no unwinding and no hook. These
+# lints keep the panic surface explicit: every remaining panicking construct must be
+# suppressed per-site with an expiring `#[expect(…, reason = …)]` naming its enforcer.
+# Test code is exempt at the crate root via `#![cfg_attr(test, allow(…))]` (§D3):
+# `unwrap()` is how a test fails, and forbidding it there would produce noise that
+# gets suppressed wholesale.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+
+# A swallowed fallible outcome must be distinguishable from a deliberate discard.
+# Every discard carries a per-site `#[expect]` with a reason; an unannotated one fails
+# the build instead of passing silently.
+let_underscore_must_use = "deny"
+
+# `indexing_slicing` is deliberately absent: warn is unrepresentable here (the local
+# `warnings = "deny"` catch-all and CI's `-D warnings` both escalate every emitted
+# warning to error), and deny would ship an unreviewable ~450-error diff (measured,
+# task 2.2). Follow-up debt; see src/main.rs.

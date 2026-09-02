@@ -1,0 +1,17 @@
+[package]
+name = "oxmgr-store"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "OxMgr store: event retention, hashing, JS config extraction"
+
+[dependencies]
+oxmgr-core = { workspace = true }
+
+anyhow = { workspace = true }
+sha2 = { workspace = true }
+
+[lints]
+workspace = true

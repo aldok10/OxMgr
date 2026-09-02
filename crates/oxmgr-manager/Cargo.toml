@@ -1,0 +1,35 @@
+[package]
+name = "oxmgr-manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "OxMgr manager: process lifecycle, ecosystem import, signal handling"
+
+[dependencies]
+oxmgr-core = { workspace = true }
+oxmgr-store = { workspace = true }
+oxmgr-metrics = { workspace = true }
+oxmgr-analytics = { workspace = true }
+
+anyhow = { workspace = true }
+chrono = { workspace = true }
+croner = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+json5 = { workspace = true }
+shell-words = { workspace = true }
+sysinfo = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal", "process", "user"] }
+
+[dev-dependencies]
+serial_test = { version = "3.5" }
+
+[lints]
+workspace = true

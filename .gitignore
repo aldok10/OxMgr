@@ -29,3 +29,19 @@ SHA256SUMS
 !/packaging/npm/vendor/.gitkeep
 
 website-link
+
+# AI agent artifacts
+/.playwright-mcp/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/
+
+# Session artifacts
+sweep-*.png
+
+# Web build artifacts and dependencies
+web/node_modules/
+web/test-results/
+web/tests/oxmgr_home/
+phone-descendant-panel.png
+test-oxfile.toml

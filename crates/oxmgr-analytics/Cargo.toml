@@ -1,0 +1,22 @@
+[package]
+name = "oxmgr-analytics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "OxMgr analytics: deterministic detectors, baselines, history, patterns"
+
+[dependencies]
+oxmgr-core = { workspace = true }
+oxmgr-store = { workspace = true }
+oxmgr-metrics = { workspace = true }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

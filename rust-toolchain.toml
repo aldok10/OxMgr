@@ -1,0 +1,9 @@
+# Pinned toolchain. Exact released stable version so local and CI are
+# identical: rustup downloads this exact build when the toolchain is selected
+# for this directory. Moving the pin forward is a deliberate commit, not a
+# side effect of `rustup update`. The `cargo`/`rustc` invocations in this repo
+# resolve through this file, and Cargo.toml's `rust-version` mirrors it.
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
