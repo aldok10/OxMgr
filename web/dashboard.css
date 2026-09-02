@@ -1,56 +1,229 @@
+/* ── Cascade layers ───────────────────────────────────────────────────────────
+   Declared first, which fixes the order regardless of where rules appear below.
+
+   The whole pre-existing sheet is wrapped in `base` and the sidebar rewrite lives in
+   `components`. That is not decoration: an unlayered rule beats a rule in ANY layer,
+   so putting only the new sidebar in a layer would have made it lose to the generic
+   `button` rules that also style `#host-toggle`. Partial adoption is the one way to
+   get cascade layers wrong, so the sheet is wrapped rather than half-migrated.
+
+   Inline styles still win over every layer, which is what keeps the JS-published
+   `--bottom-bar-h` on `documentElement` working untouched. */
+@layer base, components, a11y;
+
+@layer base {
+
 /* Shared variables */
 :root {
   --mono: 'JetBrains Mono', ui-monospace, monospace;
-  --sans: 'Figtree', system-ui, -apple-system, sans-serif;
+  --sans: system-ui, -apple-system, sans-serif;
   --radius: 6px;
   --radius-lg: 10px;
   --transition: 0.12s ease;
+
+  /* ── Type scale ─────────────────────────────────────────────────────────────
+     Denominated in `rem`, which is the whole point: a `px` font-size ignores the
+     browser's font-size setting entirely, so a user who raises their default because
+     12px is unreadable received 12px anyway. Page zoom is not a substitute — it
+     scales the layout too, which is a different thing from wanting bigger text.
+     (WCAG 2.2 SC 1.4.4 Resize Text.)
+
+     Eight steps, replacing 11 literal sizes chosen one rule at a time
+     (9, 10, 10.5, 11, 12, 13, 14, 15, 16, 18, 48). Every retained value maps to an
+     EXACT rem at the 16px default, so adopting the scale is verifiable as a no-op:
+     compare computed styles before and after at the default root size and they must
+     be identical. Sizes then diverge only where the user asked them to.
+
+     The one deliberate rendered-size change is 10.5px, which had a single use and
+     collapses into --text-2xs (10px). It is recorded rather than buried: a half-pixel
+     step is the clearest evidence there was no scale.
+
+     `--text-3xs` is restricted to supporting labels — units, captions, secondary
+     annotations. It must not carry a figure, a process name or a status, which is a
+     requirement in `dashboard-design-tokens` rather than a convention. Body steps are
+     --text-xs and up. */
+  --text-3xs: 0.5625rem;  /*  9px — supporting labels ONLY */
+  --text-2xs: 0.625rem;   /* 10px */
+  --text-xs: 0.6875rem;   /* 11px */
+  --text-sm: 0.75rem;     /* 12px — the workhorse (20 uses before the scale) */
+  --text-md: 0.8125rem;   /* 13px */
+  --text-lg: 0.875rem;    /* 14px */
+  --text-xl: 0.9375rem;   /* 15px */
+  --text-2xl: 1rem;       /* 16px */
+  --text-3xl: 1.125rem;   /* 18px */
+  --text-display: 3rem;   /* 48px — the empty-state glyph */
+
+  /* ── Space scale ────────────────────────────────────────────────────────────
+     Eight steps replacing 18 literals (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18,
+     20, 24, 32, 48). Also `rem`, so padding grows with the text it surrounds rather
+     than leaving large text cramped in a box sized for small text.
+
+     Border widths, outline offsets and single-pixel rules stay literal `px`
+     deliberately: those are device-pixel details, not spacing, and scaling a 1px rule
+     with the font size makes it blurry rather than bigger. */
+  --space-3xs: 0.125rem;  /*  2px */
+  --space-2xs: 0.25rem;   /*  4px */
+  --space-xs: 0.375rem;   /*  6px */
+  --space-sm: 0.5rem;     /*  8px — the workhorse (32 uses before the scale) */
+  --space-md: 0.625rem;   /* 10px */
+  --space-lg: 0.75rem;    /* 12px */
+  --space-xl: 1rem;       /* 16px */
+  --space-2xl: 1.5rem;    /* 24px */
+  --space-3xl: 2rem;      /* 32px */
   --accent: #e8572a;
   --accent-hover: #c94a20;
-  --green: #22c55e;
-  --yellow: #eab308;
-  --red: #ef4444;
-  --gray: #6b7280;
+  /* Accent used as a fill under white text. The brand accent measures 3.6:1
+     against white, below the 4.5:1 AA needs for 12px labels; these are darkened
+     to 5.18 and 6.07 while staying in the same hue family. --accent itself is
+     unchanged so the logo, group labels and links keep the brand colour. */
+  --accent-fill: #c2410c;
+  --accent-fill-hover: #b03a10;
+  --green: light-dark(#22c55e, #3ecf8e);
+  --yellow: light-dark(#eab308, #e6b356);
+  --red: light-dark(#ef4444, #ef5b62);
+  --gray: light-dark(#6b7280, #7b8494);
 }
 
-/* Light mode (default) */
+/* ── Theme tokens ─────────────────────────────────────────────────────────────
+   One palette, not two. Every value that differs between themes is a
+   `light-dark()` pair, so the light and dark values sit on the same line and
+   cannot drift apart — which is what a duplicated 46-token block behind a media
+   query invites, and the reason a few dark values had already fallen behind their
+   light counterparts.
+
+   Because `light-dark()` resolves off `color-scheme` rather than off the media
+   query, a manual theme override is one declaration (see the theme rules at the
+   end of this layer) instead of a second full palette. The media query is gone
+   entirely: `color-scheme: light dark` already follows the OS by default. */
 :root {
-  --bg: #f8fafc;
-  --bg-panel: #ffffff;
-  --bg-hover: #f1f5f9;
-  --border: #e2e8f0;
-  --text: #1e293b;
-  --text-dim: #64748b;
-  --log-bg: #f1f5f9;
-  --version-color: #94a3b8;
-  --version-border: rgba(148, 163, 184, 0.4);
-  --version-hover-color: #64748b;
-  --version-hover-border: #cbd5e1;
-  --shadow-overlay: rgba(0, 0, 0, 0.2);
-  --shadow-panel: rgba(0, 0, 0, 0.1);
+  /* Declared here rather than beside the sidebar rules, because every `light-dark()`
+     below resolves against it — and it is also what gives native scrollbars, form
+     controls and `::selection` the right chrome, which CSS does not paint itself.
+     Both keywords means "follow the OS"; the overrides at the end of this block
+     narrow it to one. */
+  color-scheme: light dark;
+
+  /* The sidebar's grid track, as one token because THREE rules now place it: the default
+     right-hand layout, the swapped left-hand layout, and the panel's own max-width. Three
+     literals is how they drift apart. Wider than the old 300px because the content cap was
+     raised (see `main`), and the extra room went to the column that was truncating mount
+     paths and interface names rather than to the table, which was not short of width. */
+  --sb-width: 340px;
+
+  /* Severity hues for TEXT, which needs a higher floor than a meter does.
+     WCAG 1.4.11 asks 3:1 for a non-text meter; 1.4.3 asks 4.5:1 for small text. The meter
+     tokens clear the first and were reused for text as well — a real defect, caught by
+     rendering the page in a browser and reading the pixels back through a canvas rather
+     than by reading the rule: `--sb-warn` as text measured 4.20:1 against the light panel,
+     under the 4.5 floor. Darkened per hue to the lowest lightness that clears it, measured
+     against the real surface rgb(254,250,249):
+       green L=0.52 -> 4.69:1    amber L=0.56 -> 4.58:1    red L=0.58 -> 4.60:1
+     Dark mode already clears 4.5 comfortably (5.31, 7.06, 6.06), so those values are
+     unchanged and the two themes keep their own ramps.
+
+     Defined at `:root` rather than on `.host-panel`, where it started. Scoped to the panel
+     it was invisible to everything else, and the finding markers in the PROCESS TABLE
+     resolved it to nothing: measured, `.finding-flag.warning` rendered plain white (colour
+     cue dead) and `.finding-flag.critical` came out rgb(20,20,20) on rgb(26,22,21) — a
+     1.03:1 contrast, effectively invisible. Caught by canvas-reading the rendered pixels,
+     not by reading the CSS. */
+  --sb-ok-text: light-dark(oklch(0.52 0.19 149), oklch(0.72 0.19 149));
+  --sb-warn-text: light-dark(oklch(0.56 0.17 75), oklch(0.72 0.17 75));
+  --sb-crit-text: light-dark(oklch(0.58 0.21 25), oklch(0.72 0.21 25));
+
+  /* ── Accent ink (text on accent fills — Hallmark gate 41) ───────────────── */
+  --accent-ink: oklch(100% 0 0);
+
+  /* ── Severity-tinted backgrounds ────────────────────────────────────────── */
+  --bg-ok:    light-dark(rgba(34, 197, 94, 0.1),  rgba(62, 207, 142, 0.1));
+  --bg-warn:  light-dark(rgba(234, 179, 8, 0.07), rgba(230, 179, 86, 0.07));
+  --bg-crit:  light-dark(rgba(239, 68, 68, 0.08), rgba(239, 91, 98, 0.08));
+
+  /* ── Severity-tinted borders ────────────────────────────────────────────── */
+  --border-ok:    light-dark(rgba(34, 197, 94, 0.4),  rgba(62, 207, 142, 0.4));
+  --border-warn:  light-dark(rgba(234, 179, 8, 0.12), rgba(230, 179, 86, 0.12));
+  --border-crit:  light-dark(rgba(239, 68, 68, 0.3),  rgba(239, 91, 98, 0.3));
+
+  /* ── Shadow tokens ──────────────────────────────────────────────────────── */
+  --shadow-confirm: light-dark(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.55));
+
+  /* ── Accent highlight (search hit in log viewer) ────────────────────────── */
+  --bg-accent-highlight: rgba(232, 87, 42, 0.28);
+
+  --bg: light-dark(#f8fafc, #0a0a0a);
+  --bg-panel: light-dark(oklch(98% 0.008 60), #141414);
+  --bg-hover: light-dark(#f1f5f9, #1c1c1c);
+  --border: light-dark(#e2e8f0, #26262a);
+  --text: light-dark(#1e293b, #e8e8e8);
+  --text-dim: light-dark(#64748b, #8b8b93);
+  /* Hover fill for buttons. Kept light so the dark --text label stays legible:
+     a dark fill here is what made light-mode labels vanish. */
+  --bg-hover-strong: light-dark(#e2e8f0, #252b38);
+  /* Danger text needs 4.5:1 as body text; --red (#ef4444) measured 3.44 at rest
+     and 3.15 hovered against the composited hover fill. --red still paints dots
+     and borders, which are non-text and only need 3:1. */
+  --danger-text: light-dark(#991b1b, #ef5b62);
+  --border-strong: light-dark(#94a3b8, #354052);
+  --log-bg: light-dark(#f1f5f9, #0b0d11);
+  --log-gutter: light-dark(#52627a, #7d8899);
+  --log-gutter-bg: light-dark(#e9eef5, #0f1319);
+  --log-row-hover: light-dark(#e4eaf2, #151a22);
+  /* Log palette for light mode. Every value here is measured against --log-bg
+     (#f1f5f9) at 4.5:1 or better: the first pass used mid-range hues that looked
+     right and measured between 3.0 and 4.3, which is below AA for body text. */
+  --log-ts: light-dark(#475569, #939eaf);
+  --log-json-key: light-dark(#0c4a6e, #7dd3fc);
+  --log-json-str: light-dark(#166534, #86efac);
+  --log-json-num: light-dark(#92400e, #fcd34d);
+  --log-json-bool: light-dark(#5b21b6, #c4b5fd);
+  --log-json-null: light-dark(#475569, #939eaf);
+  --log-punct: light-dark(#475569, #8a95a6);
+  /* ANSI palette, darkened for contrast against a light background. The "bright"
+     variants stay visually lighter than their base but must still clear AA, so
+     they are darker than a terminal's bright colours. */
+  --ansi-black: light-dark(#334155, #4b5563);
+  --ansi-red: light-dark(#991b1b, #f87171);
+  --ansi-green: light-dark(#166534, #4ade80);
+  --ansi-yellow: light-dark(#854d0e, #fbbf24);
+  --ansi-blue: light-dark(#1e3a8a, #60a5fa);
+  --ansi-magenta: light-dark(#86198f, #e879f9);
+  --ansi-cyan: light-dark(#155e75, #22d3ee);
+  --ansi-white: light-dark(#334155, #d1d5db);
+  --ansi-bright-black: light-dark(#475569, #6b7280);
+  --ansi-bright-red: light-dark(#b91c1c, #fca5a5);
+  --ansi-bright-green: light-dark(#15803d, #86efac);
+  --ansi-bright-yellow: light-dark(#8a5309, #fcd34d);
+  --ansi-bright-blue: light-dark(#1d4ed8, #93c5fd);
+  --ansi-bright-magenta: light-dark(#a21caf, #f0abfc);
+  --ansi-bright-cyan: light-dark(#0e7490, #67e8f9);
+  --ansi-bright-white: light-dark(#1e293b, #f9fafb);
+  --version-color: light-dark(#94a3b8, #52525b);
+  --version-border: light-dark(rgba(148, 163, 184, 0.4), rgba(39, 39, 42, 0.8));
+  --version-hover-color: light-dark(#64748b, #71717a);
+  --version-hover-border: light-dark(#cbd5e1, #3f3f46);
+  --shadow-overlay: light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.55));
+  --shadow-panel: light-dark(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.5));
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0a0a;
-    --bg-panel: #141414;
-    --bg-hover: #1c1c1c;
-    --border: #26262a;
-    --text: #e8e8e8;
-    --text-dim: #8b8b93;
-    --log-bg: #0b0d11;
-    --version-color: #52525b;
-    --version-border: rgba(39, 39, 42, 0.8);
-    --version-hover-color: #71717a;
-    --version-hover-border: #3f3f46;
-    --shadow-overlay: rgba(0, 0, 0, 0.55);
-    --shadow-panel: rgba(0, 0, 0, 0.5);
-    --green: #3ecf8e;
-    --yellow: #e6b356;
-    --red: #ef5b62;
-    --gray: #7b8494;
-  }
+/* ── Manual theme override ────────────────────────────────────────────────────
+   Two declarations, and the entire palette follows. Every themed value is a
+   `light-dark()` pair resolved against `color-scheme`, so narrowing that one
+   property to a single keyword re-resolves all 48 of them — there is no second
+   palette to maintain and no `.dark` class to add to every rule.
+
+   `:root:not([data-theme])` is deliberately NOT used: the absence of the attribute
+   is the auto case, which the base `color-scheme: light dark` above already
+   handles. So "auto" is implemented by removing the attribute, and there is
+   exactly one code path per state.
+
+   The attribute is set on `<html>` by the inline script in dashboard.html before
+   first paint, so a dark-mode user who chose light does not see a dark flash. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 *,
@@ -63,12 +236,13 @@ html,
 body {
   margin: 0;
   padding: 0;
+  overflow-x: clip;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 var(--sans);
+  font: var(--text-lg)/1.45 var(--sans);
 }
 
 /* Utilities */
@@ -89,8 +263,8 @@ body {
 header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 24px;
+  gap: var(--space-xl);
+  padding: 14px var(--space-2xl);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   position: sticky;
@@ -100,7 +274,7 @@ header {
 }
 
 header h1 {
-  font-size: 16px;
+  font-size: var(--text-2xl);
   margin: 0;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -112,23 +286,27 @@ header h1 span {
 
 .addr {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-dim);
 }
 
 .version {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--version-color);
   background: transparent;
   border: 1px solid var(--version-border);
-  padding: 3px 6px;
+  padding: 3px var(--space-xs);
   border-radius: 4px;
-  margin-left: 8px;
+  margin-left: var(--space-sm);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  transition: all 0.2s ease;
+  /* Named properties, not `all` — same reasoning as `.stat` below. The only state that
+     changes this element is `header h1:hover`, which moves `border-color` and `color`. */
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 header h1:hover .version {
@@ -140,16 +318,16 @@ header h1:hover .version {
 .env-label {
   display: none;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 4px 8px;
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 4px;
   line-height: 1;
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--bg-crit);
+  color: var(--red);
+  border: 1px solid var(--border-crit);
 }
 
 .env-label.visible {
@@ -159,19 +337,28 @@ header h1:hover .version {
 /* Stats */
 .stats {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
   flex-wrap: wrap;
 }
 
 .stat {
-  padding: 3px 10px;
+  padding: 3px var(--space-md);
   border-radius: 999px;
   border: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-dim);
-  white-space: nowrap;
+  word-wrap: break-word;
   cursor: pointer;
-  transition: all var(--transition);
+  /* Named properties, not `all`. Measured: the only things the `:hover` and `.active`
+     states change are `background`, `border-color` and `color`, so `all` was buying
+     nothing and risking everything — it animates every animatable property, including
+     ones a later author adds without knowing this rule exists. That is how a layout
+     property silently starts transitioning on a stream-driven update, which
+     `dashboard-render-efficiency` already forbids for meters. */
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
 }
 
 .stat:hover {
@@ -180,13 +367,13 @@ header h1:hover .version {
 }
 
 .stat.active {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
 }
 
 .stat.active b {
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .stat b {
@@ -208,24 +395,51 @@ header h1:hover .version {
 
 /* Main */
 main {
-  padding: 20px 24px;
-  max-width: 1200px;
+  /* Fluid rather than a fixed 24px: on a 390px viewport that was 12% of the width spent
+     on margin. Floored so it never collapses to nothing, capped so it stops growing. */
+  padding: 20px clamp(10px, 3vw, 24px);
+  /* Raised from a flat 1200px. With the sidebar taking a 340px track, 1200px left the
+     table ~830px while a 1920px display had ~350px of empty page either side of the
+     whole layout — the panel was cramped and the space to fix it was sitting unused.
+     `min()` rather than a larger flat cap so the layout still centres with a margin on
+     an ultrawide instead of running edge to edge: 96vw keeps a visible gutter, and the
+     1680px ceiling stops the table growing to a width where the eye loses the row. */
+  max-width: min(96vw, 1680px);
   margin: 0 auto;
 }
 
-/* Toolbar */
+/* Toolbar / Nav */
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-md);
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
-.toolbar .hint {
-  color: var(--text-dim);
-  font-size: 12px;
+.nav-bar { display: contents; }
+.filter-panel { display: contents; }
+.filter-panel-inner { display: contents; }
+#filter-toggle { display: none; }
+/* #host-open and .host-panel #host-close hides moved to @layer components (part 22)
+   so they beat the generic .host-icon-btn display in the same layer. */
+
+/* Nav icons are a phone-only treatment: the desktop toolbar keeps its text-only buttons,
+   so the SVGs inside `.nav-bar` are hidden from 701px up, where the toolbar is a plain
+   row again. Stroke grammar here ("feather"-style) makes every icon inherit ink and
+   weight from `currentColor`; the phone cells only set size and press feedback. */
+.nav-bar svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
+@media (min-width: 701px) {
+  .nav-bar svg { display: none; }
+}
+
+header .hint { color: var(--text-dim); font-size: var(--text-sm); word-wrap: break-word; }
 
 .toolbar input[type="search"],
 .toolbar select {
@@ -233,17 +447,17 @@ main {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
-  font: 12px var(--sans);
-  padding: 5px 10px;
+  font: var(--text-sm) var(--sans);
+  padding: 5px var(--space-md);
 }
 
 .toolbar input[type="search"] {
-  min-width: 180px;
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 260px;
 }
 
-.toolbar input[type="search"]::placeholder {
-  color: var(--text-dim);
-}
+.toolbar input[type="search"]::placeholder { color: var(--text-dim); }
 
 .toolbar input[type="search"]:focus,
 .toolbar select:focus {
@@ -251,16 +465,25 @@ main {
   border-color: var(--accent);
 }
 
+.filter-badge {
+  background: var(--accent-fill);
+  color: var(--accent-ink);
+  border-radius: 99px;
+  padding: 0 5px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
 /* Error banner */
 .error-banner {
   display: none;
-  background: rgba(239, 91, 98, 0.12);
-  border: 1px solid rgba(239, 91, 98, 0.5);
+  background: var(--bg-crit);
+  border: 1px solid var(--border-crit);
   color: var(--red);
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-lg);
   border-radius: 8px;
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 /* Buttons */
@@ -269,15 +492,15 @@ button {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 5px 12px;
-  font: 12px var(--sans);
+  padding: 5px var(--space-lg);
+  font: var(--text-sm) var(--sans);
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition);
 }
 
 button:hover:not(:disabled) {
-  background: #252b38;
-  border-color: #354052;
+  background: var(--bg-hover-strong);
+  border-color: var(--border-strong);
 }
 
 button:disabled {
@@ -286,8 +509,8 @@ button:disabled {
 }
 
 button.small {
-  padding: 2px 8px;
-  font-size: 11px;
+  padding: var(--space-3xs) var(--space-sm);
+  font-size: var(--text-xs);
 }
 
 button.busy {
@@ -296,27 +519,88 @@ button.busy {
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 
 button.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-fill-hover);
+  border-color: var(--accent-fill-hover);
 }
 
 button.danger {
-  color: var(--red);
+  color: var(--danger-text);
 }
 
 button.danger:hover:not(:disabled) {
   border-color: var(--red);
-  background: rgba(239, 91, 98, 0.08);
+  background: var(--bg-crit);
+}
+
+/* Touch targets.
+   Keyed on pointer capability, not viewport width: a 900px window on a desktop does not
+   need 44px targets and a 1280px touchscreen does. Width is a proxy for input modality and
+   a poor one, so layout and sizing are decided independently.
+   Measured before this: every visible button was under 44px, and the row action buttons
+   were 19px tall and 42px wide — with Stop and Reload adjacent, both destructive. WCAG
+   2.5.5 and both platform guidelines ask for 44x44. */
+@media (any-pointer: coarse) {
+  button,
+  .toolbar input[type="search"],
+  .toolbar select {
+    min-height: 44px;
+    padding: var(--space-md) 14px;
+  }
+
+  button.small {
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--space-md) var(--space-lg);
+    font-size: var(--text-sm);
+  }
+
+  .seg button {
+    min-height: 44px;
+    padding: var(--space-md) 14px;
+  }
+
+  /* The log gutter is not interactive, so it keeps its compact type. */
+  .log-row,
+  .log-gutter,
+  .log-text {
+    min-height: 0;
+  }
 }
 
 /* Table */
+/* Scroll container for the table. The table itself can be wider than a narrow viewport,
+   and without this it widened the whole document — measured 465px of page overflow at
+   390px, so more than half the interface was off-screen and reachable only by panning the
+   page. Confining the scroll to this wrapper keeps the header and toolbar in place. */
+/* Horizontal scroll for the table, scoped to the widths that need it.
+   Two approaches failed before this one, both measured:
+   1. `overflow-x: auto` alone. Cannot be scoped to one axis — the spec raises the `visible`
+      counterpart to `auto`, so the wrapper became a scroll container and therefore the
+      containing block for `position: sticky`. The header stuck to the wrapper instead of the
+      page, and `top: 57px` (calibrated against the 54px page header) shoved it 57px DOWN
+      over the first group row and the first process.
+   2. `overflow-x: auto; overflow-y: clip`. When one axis is `auto` and the other `clip`, the
+      `clip` computes to `hidden` — still a scroll container. Measured `auto/hidden` and the
+      same 57px overlap. That snippet fixes sticky scoped INSIDE a wrapper, not a header
+      sticking to the page.
+   So: the wrapper stays transparent where the table fits anyway, and only becomes a scroll
+   container where it would overflow. The sticky offset is corrected in that band by the rule that
+   follows the base `th` declaration. */
+@media (max-width: 1249px) {
+  .table-wrap {
+    overflow-x: auto;
+    /* Momentum scrolling on touch, and a scrollbar that does not overlay content. */
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -325,13 +609,13 @@ table {
 th,
 td {
   text-align: left;
-  padding: 8px 10px;
+  padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--border);
 }
 
 th {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -339,6 +623,119 @@ th {
   top: 57px;
   background: var(--bg);
   z-index: 5;
+}
+
+/* ── Sortable column headers ──────────────────────────────────────────────────
+   Sort controls are real <button>s inside <th> for keyboard accessibility and
+   proper disabled/pressed state. The button inherits the header's font, color
+   and uppercase styling via inheritance, then adds a click affordance and sort
+   indicators.
+
+   Multi-sort: Shift+click adds a secondary sort key. The sort-order badge
+   (a number) shows the priority. Cycle: asc → desc → remove. */
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  word-wrap: break-word;
+  border-radius: var(--radius);
+  transition: color var(--sb-dur) var(--sb-ease), background var(--sb-dur) var(--sb-ease);
+}
+
+.sort-btn:hover {
+  color: var(--text);
+  background: var(--sb-hover);
+}
+
+.sort-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Sort direction indicator: ▲ / ▼ via borders. */
+.sort-icon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  inline-size: 10px;
+  flex-shrink: 0;
+}
+
+/* The two triangles (unsorted, asc, desc) are drawn with borders, not Unicode
+   characters, so they scale with font size and match the text colour without
+   a separate `color` declaration. */
+.sort-icon::before,
+.sort-icon::after {
+  content: "";
+  display: block;
+  border-inline: 4px solid transparent;
+  border-block: 0;
+}
+
+.sort-icon::before {
+  border-block-end: 4px solid currentColor;
+  opacity: 0.3;
+}
+
+.sort-icon::after {
+  border-block-start: 4px solid currentColor;
+  opacity: 0.3;
+}
+
+/* Active sort: the current direction is opaque, the other dimmed. */
+.sort-btn[data-dir="1"] .sort-icon::before {
+  opacity: 1;
+}
+.sort-btn[data-dir="1"] .sort-icon::after {
+  opacity: 0.15;
+}
+.sort-btn[data-dir="-1"] .sort-icon::after {
+  opacity: 1;
+}
+.sort-btn[data-dir="-1"] .sort-icon::before {
+  opacity: 0.15;
+}
+
+/* Sort-order badge for multi-sort: a circled number showing priority. */
+.sort-btn[data-sort-order]::after {
+  content: attr(data-sort-order);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: var(--text-3xs);
+  font-weight: 700;
+  line-height: 1;
+  margin-inline-start: 1px;
+}
+
+/* Active column is accent-coloured so the operator sees which sort is primary. */
+.sort-btn[data-dir] {
+  color: var(--accent);
+}
+
+/* Must follow the base rule: same specificity, so source order decides. Placed inside the
+   `.table-wrap` media block above it silently lost — measured the 57px overlap still present
+   at 768-1023px.
+   Below 1250px the wrapper scrolls, so sticky resolves against the wrapper and the page-header
+   offset would be a pure downward shove. Zero pins the header to the wrapper's top edge. */
+@media (max-width: 1249px) {
+  th {
+    top: 0;
+  }
 }
 
 tbody tr:hover {
@@ -352,14 +749,29 @@ tr.clickable {
 .name-cell {
   font-family: var(--mono);
   font-weight: 600;
+  /* A long process name must not be what makes the page overflow. */
+  max-width: 22ch;
+  
+  
+  word-wrap: break-word;
 }
 
 .actions {
-  white-space: nowrap;
+  word-wrap: break-word;
 }
 
 .actions button+button {
-  margin-left: 6px;
+  margin-left: var(--space-xs);
+}
+
+/* Must come after the base rule above: same specificity, so source order decides. Placing
+   this in the earlier touch block silently lost — measured 6px on a touch device when 10px
+   was intended. A fingertip is imprecise, and a touch must not land ambiguously between two
+   controls when one of them stops a production process. */
+@media (any-pointer: coarse) {
+  .actions button+button {
+    margin-left: var(--space-md);
+  }
 }
 
 .empty {
@@ -368,12 +780,65 @@ tr.clickable {
   padding: 48px 0;
 }
 
+/* The process table's empty state is hidden until the store reports zero
+   processes; toggled by a class rather than inline style or CSSOM. */
+#empty-state {
+  display: none;
+}
+#empty-state.is-shown {
+  display: block;
+}
+
+/* Column priority.
+   Ten columns cannot be made to fit a phone by narrowing them: at 39px each every value is
+   truncated and the table is useless in a different way. So columns are dropped in reverse
+   order of how much they change what an operator does next.
+   Identifiers go first — you look up an ID or PID once you already have a reason — then
+   health, restarts and uptime. Status, name and actions never go, and every hidden value is
+   still in the detail panel one tap away. */
+/* Disk exists for the phone card only. The desktop column set is deliberately unchanged —
+   eleven columns would reintroduce the overflow phase 1 removed — so it is hidden in the
+   table at every width and revealed by the stacked layout. */
+.col-disk {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .col-id {
+    display: none;
+  }
+}
+
+@media (max-width: 880px) {
+  .col-pid {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .col-health {
+    display: none;
+  }
+}
+
+@media (max-width: 660px) {
+  .col-restarts {
+    display: none;
+  }
+}
+
+@media (max-width: 580px) {
+  .col-uptime {
+    display: none;
+  }
+}
+
 /* Badge & Dot */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -410,7 +875,7 @@ tr.clickable {
 
 /* Health */
 .health {
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .health.healthy {
@@ -428,7 +893,7 @@ tr.clickable {
 /* Group rows */
 .group-row td {
   background: var(--bg-hover);
-  padding: 14px 10px 4px;
+  padding: 14px var(--space-md) var(--space-2xs);
   font-weight: 600;
   color: var(--text-dim);
 }
@@ -436,39 +901,39 @@ tr.clickable {
 .group-label {
   color: var(--accent);
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0.5px;
 }
 
 /* Error row (inline error below crashed/errored processes) */
 .error-row td {
-  padding: 6px 10px 8px 10px;
+  padding: var(--space-xs) var(--space-md) var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--border);
-  background: rgba(239, 68, 68, 0.05);
+  background: var(--bg-crit);
 }
 
 .error-row:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--bg-crit);
 }
 
 .error-inline {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--red);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-left: 24px;
+  word-wrap: break-word;
+  
+  
+  padding-left: var(--space-2xl);
 }
 
 .error-icon {
-  margin-right: 6px;
+  margin-right: var(--space-xs);
 }
 
 .error-detail-link {
   color: var(--accent);
   text-decoration: none;
-  margin-left: 8px;
+  margin-left: var(--space-sm);
   font-weight: 500;
 }
 
@@ -476,22 +941,159 @@ tr.clickable {
   text-decoration: underline;
 }
 
-/* Overlay (shared) */
-.log-overlay,
-.detail-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: var(--shadow-overlay);
-  z-index: 100;
+/* ── Descendant attribution (managed-process-child-visibility) ────────────────
+   The per-row expansion control and the panel it reveals. Plain CSS only — every
+   feature here is Baseline Widely available; nothing needs a guard or fallback.
+   The control is a real <button>, so under a coarse pointer it inherits the
+   44px touch minimum from the global touch-target rule without its own media
+   query; on a fine pointer it stays compact below. */
+.expand-btn {
+  padding: var(--space-3xs) var(--space-xs);
+  margin-inline-end: var(--space-xs);
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.expand-glyph {
+  display: inline-block;
+  /* A transform, not a content swap: the glyph never reflows the cell. */
+  transition: transform 120ms ease;
+}
+
+.expand-btn[aria-expanded="true"] .expand-glyph {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expand-glyph {
+    transition: none;
+  }
+}
+
+.descendant-row td {
+  padding: var(--space-xs) var(--space-md) var(--space-sm) calc(var(--space-md) + var(--space-lg));
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.descendant-block {
+  font-size: var(--text-sm);
+}
+
+.descendant-freshness {
+  margin: 0 0 var(--space-xs);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
+.descendant-unavailable {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.descendant-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.descendant-table th,
+.descendant-table td {
+  text-align: left;
+  padding: var(--space-3xs) var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.descendant-table th {
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.descendant-table td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.descendant-total {
+  margin: var(--space-xs) 0 0;
+}
+
+.descendant-truncated {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
+/* Cluster marker (cluster-instance-visibility)
+   Same visual weight class as .advisory-flag but quieter — it identifies the row
+   as a supervisor, it does not grade it. Presence of a gap between requested and
+   observed is shown by the tooltip's two numbers sitting next to each other,
+   not by this marker turning red. */
+.cluster-flag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-xs);
+  padding: 0 5px;
+  height: 16px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font-family: var(--sans);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  vertical-align: middle;
+  /* The tooltip carries requested vs observed, so the cursor says there is something
+     to read — same affordance as .advisory-flag. */
+  cursor: help;
+}
+
+@media (any-pointer: coarse) {
+  /* Same reasoning as .advisory-flag: a tooltip is unreachable without a cursor, so
+     the marker becomes a tap target that opens the detail panel, where the cluster
+     shape is spelled out in full. */
+  .cluster-flag {
+    min-width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    margin-left: var(--space-sm);
+  }
+}
+
+/* Overlay (shared)
+   These are native <dialog> elements now, so the browser owns show/hide and stacking:
+   no `display:none` default (a closed dialog is hidden), no `position:fixed; inset:0`
+   (the top layer is already viewport-anchored), and no `z-index` — the top layer sits
+   above every stacking context by definition, so nothing can out-stack it.
+
+   `display: flex` is gated on the `[open]` attribute. Author declarations beat the UA
+   sheet unconditionally, so an ungated `display: flex` here would keep a CLOSED dialog
+   laid out — transparent, full-bleed, and intercepting every click on the page beneath
+   it (measured: Detail button unreachable after one open/close cycle). With `[open]`
+   the UA's `dialog:not([open]) { display: none }` applies when closed, and this rule
+   takes over exactly when `showModal()` sets the attribute. That replaces the
+   old `.log-overlay.open { display: flex }` pair. */
+.log-overlay[open],
+.detail-overlay[open] {
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 2vh 2vw;
+  /* Undo the UA dialog box: it ships a border, white background, `width: fit-content`
+     and centring margins, none of which suit a full-bleed overlay. */
+  border: 0;
+  background: none;
+  max-width: none;
+  max-height: none;
+  inline-size: 100%;
+  block-size: 100%;
+  color: var(--text);
 }
 
-.log-overlay.open,
-.detail-overlay.open {
-  display: flex;
+/* The backdrop replaces the semi-transparent overlay background the div used to paint.
+   Custom properties inherit here from the originating element, verified rendered in both
+   themes (light rgba(0,0,0,0.2) / dark rgba(0,0,0,0.55)) rather than assumed. */
+.log-overlay::backdrop,
+.detail-overlay::backdrop {
+  background: var(--shadow-overlay);
 }
 
 /* Panel (shared) */
@@ -525,6 +1127,9 @@ tr.clickable {
   border-radius: 0;
   position: fixed;
   inset: 0;
+  /* A leftover drag offset would push the maximised panel off the viewport,
+     since inset:0 positions it but transform still displaces it. */
+  transform: none !important;
 }
 
 /* Resize handles */
@@ -621,11 +1226,26 @@ tr.clickable {
 }
 
 /* Log head */
+/* Lifecycle actions in the detail panel header. Wraps rather than overflows, because at
+   phone width the header also carries a title and a Close button. */
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+@media (any-pointer: coarse) {
+  .detail-actions {
+    gap: var(--space-md);
+  }
+}
+
 .log-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   cursor: default;
@@ -634,7 +1254,7 @@ tr.clickable {
 
 .log-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-family: var(--mono);
 }
 
@@ -643,7 +1263,7 @@ tr.clickable {
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  
 }
 
 .seg button {
@@ -658,54 +1278,419 @@ tr.clickable {
   color: var(--text);
 }
 
-/* Log body */
+/* Log body: scroll container. Rows are real elements, so scrollHeight is exact
+   and the bottom is always reachable regardless of how lines wrap. */
 .log-body {
   padding: 0;
   overflow: auto;
-  font: 12px/1.55 var(--mono);
+  overflow-anchor: none;
+  font: var(--text-sm)/1.55 var(--mono);
   background: var(--log-bg);
   flex: 1;
   min-height: 0;
+  position: relative;
+  contain: layout paint;
 }
 
 .log-viewport {
-  padding: 12px 16px;
+  padding: var(--space-sm) 0;
   min-height: 100%;
 }
 
-.log-content {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+/* One row per log line: gutter + content, so the gutter can be excluded from
+   text selection while staying aligned with wrapped content. */
+.log-row {
+  display: grid;
+  grid-template-columns: var(--log-gutter-w, 56px) 1fr;
+  align-items: start;
+  column-gap: var(--space-lg);
 }
 
-.log-spacer-top,
-.log-spacer-bottom {
-  height: 0;
+.log-row:hover {
+  background: var(--log-row-hover);
 }
+
+.log-gutter {
+  user-select: none;
+  -webkit-user-select: none;
+  text-align: right;
+  color: var(--log-gutter);
+  background: var(--log-gutter-bg);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  padding: 0 var(--space-sm) 0 var(--space-xs);
+  position: sticky;
+  left: 0;
+}
+
+.log-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  padding-right: var(--space-xl);
+  min-width: 0;
+}
+
+/* Severity: a left edge and a tinted label, scannable without reading */
+.log-row.lvl-error,
+.log-row.lvl-fatal {
+  background: var(--bg-crit);
+  box-shadow: inset 2px 0 0 var(--red);
+}
+
+.log-row.lvl-warn {
+  background: var(--bg-warn);
+  box-shadow: inset 2px 0 0 var(--yellow);
+}
+
+.log-row.lvl-debug .log-text,
+.log-row.lvl-trace .log-text {
+  color: var(--text-dim);
+}
+
+.log-lvl {
+  font-weight: 700;
+}
+
+.log-lvl.error,
+.log-lvl.fatal {
+  color: var(--red);
+}
+
+.log-lvl.warn {
+  color: var(--yellow);
+}
+
+.log-lvl.info {
+  color: var(--green);
+}
+
+.log-lvl.debug,
+.log-lvl.trace {
+  color: var(--text-dim);
+}
+
+.log-ts {
+  color: var(--log-ts);
+}
+
+.log-trunc {
+  color: var(--yellow);
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* JSON tokens */
+.j-key {
+  color: var(--log-json-key);
+}
+
+.j-str {
+  color: var(--log-json-str);
+}
+
+.j-num {
+  color: var(--log-json-num);
+}
+
+.j-bool {
+  color: var(--log-json-bool);
+}
+
+.j-null {
+  color: var(--log-json-null);
+}
+
+.j-punct {
+  color: var(--log-punct);
+}
+
+/* ANSI SGR */
+.a-bold {
+  font-weight: 700;
+}
+
+.a-dim {
+  opacity: 0.65;
+}
+
+.a-italic {
+  font-style: italic;
+}
+
+.a-underline {
+  text-decoration: underline;
+}
+
+.a-fg-0 { color: var(--ansi-black); }
+.a-fg-1 { color: var(--ansi-red); }
+.a-fg-2 { color: var(--ansi-green); }
+.a-fg-3 { color: var(--ansi-yellow); }
+.a-fg-4 { color: var(--ansi-blue); }
+.a-fg-5 { color: var(--ansi-magenta); }
+.a-fg-6 { color: var(--ansi-cyan); }
+.a-fg-7 { color: var(--ansi-white); }
+.a-fg-8 { color: var(--ansi-bright-black); }
+.a-fg-9 { color: var(--ansi-bright-red); }
+.a-fg-10 { color: var(--ansi-bright-green); }
+.a-fg-11 { color: var(--ansi-bright-yellow); }
+.a-fg-12 { color: var(--ansi-bright-blue); }
+.a-fg-13 { color: var(--ansi-bright-magenta); }
+.a-fg-14 { color: var(--ansi-bright-cyan); }
+.a-fg-15 { color: var(--ansi-bright-white); }
+
+.a-bg-0 { background: var(--ansi-black); }
+.a-bg-1 { background: var(--ansi-red); }
+.a-bg-2 { background: var(--ansi-green); }
+.a-bg-3 { background: var(--ansi-yellow); }
+.a-bg-4 { background: var(--ansi-blue); }
+.a-bg-5 { background: var(--ansi-magenta); }
+.a-bg-6 { background: var(--ansi-cyan); }
+.a-bg-7 { background: var(--ansi-white); }
 
 .log-body .stderr {
   color: var(--red);
 }
 
 .log-body .empty {
-  padding: 24px 0;
+  padding: var(--space-2xl) var(--space-xl);
+  color: var(--text-dim);
+}
+
+/* Resource strip on the standalone log page. A sibling of the log body, so
+   updating it changes no log geometry and cannot move the scroll position. */
+.log-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-xl);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  font-size: var(--text-sm);
+}
+
+.log-stats[hidden] {
+  display: none;
+}
+
+.log-stats .ls-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  word-wrap: break-word;
+}
+
+.log-stats .ls-key {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.5px;
+}
+
+.log-stats .ls-val {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.log-stats .ls-val.na {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+/* Log search: filters the retained lines */
+.log-search {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: var(--text-sm) var(--mono);
+  padding: var(--space-2xs) var(--space-md);
+  min-width: 170px;
+}
+
+.log-search::placeholder {
+  color: var(--text-dim);
+  font-family: var(--sans);
+}
+
+.log-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.log-search[hidden] {
+  display: none;
+}
+
+.log-hit {
+  background: var(--bg-accent-highlight);
+  border-radius: 2px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Jump to latest: shown only while autoscroll is detached */
+.log-jump {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  z-index: 6;
+  display: none;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-lg);
+  border-radius: 999px;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--accent-ink);
+  font-weight: 600;
+  box-shadow: 0 4px 14px var(--shadow-panel);
+}
+
+.log-jump.on {
+  display: inline-flex;
+}
+
+.log-jump:hover:not(:disabled) {
+  background: var(--accent-fill-hover);
+  border-color: var(--accent-fill-hover);
+  color: var(--accent-ink);
+}
+
+/* Files tab: listing of active and rotated log files */
+/* Sits at the top of the body with no reserved height: a listing of one or two
+   files must not require scrolling past empty space to reach it. */
+.log-files {
+  padding: var(--space-lg) var(--space-xl);
+  font-family: var(--sans);
+  align-self: flex-start;
+}
+
+.log-files-group {
+  margin-bottom: 18px;
+}
+
+.log-files-group h3 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.log-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-xs);
+  background: var(--bg-panel);
+}
+
+.log-file:hover {
+  border-color: var(--border-strong);
+}
+
+.log-file .lf-name {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  word-wrap: break-word;
+}
+
+.log-file .lf-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  word-wrap: break-word;
+}
+
+.log-file .lf-badge.active {
+  color: var(--green);
+  border-color: var(--border-ok);
+  background: var(--bg-ok);
+}
+
+.log-file .lf-meta {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  word-wrap: break-word;
+}
+
+.log-file .lf-actions {
+  display: flex;
+  gap: var(--space-xs);
+  word-wrap: break-word;
 }
 
 /* Log foot */
 .log-foot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-xl);
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-dim);
+}
+
+.log-foot .count {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.log-foot .paused {
+  color: var(--yellow);
+  font-weight: 600;
+}
+
+.log-foot .rate {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.log-foot .rate.idle {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.log-foot .cap {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  cursor: help;
+  border-bottom: 1px dotted var(--border-strong);
+}
+
+/* Paging state for a finished file: whether earlier content remains. */
+.log-foot .paging {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.log-foot .paging.done {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-style: italic;
 }
 
 /* Detail panel */
 .detail-body {
-  padding: 16px 20px;
+  padding: var(--space-xl) 20px;
   overflow: auto;
   flex: 1;
   min-height: 0;
@@ -714,14 +1699,14 @@ tr.clickable {
 .detail-grid {
   display: grid;
   grid-template-columns: 220px 1fr;
-  gap: 6px 14px;
-  font-size: 13px;
+  gap: var(--space-xs) 14px;
+  font-size: var(--text-md);
 }
 
 .detail-grid .k {
   color: var(--text-dim);
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0.4px;
 }
 
@@ -732,14 +1717,36 @@ tr.clickable {
 }
 
 .detail-section {
-  margin-top: 16px;
+  margin-top: var(--space-xl);
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: var(--space-lg);
+}
+
+.detail-links {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.detail-link {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2xs) var(--space-md);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.detail-link:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 
 .detail-section h3 {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-dim);
@@ -747,11 +1754,11 @@ tr.clickable {
 
 /* Error section in detail panel */
 .error-section {
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--bg-crit);
+  border: 1px solid var(--border-crit);
   border-radius: var(--radius);
-  padding: 12px;
-  margin-top: 16px;
+  padding: var(--space-lg);
+  margin-top: var(--space-xl);
 }
 
 .error-section h3 {
@@ -760,7 +1767,7 @@ tr.clickable {
 
 .error-pre {
   margin: 0;
-  font: 12px/1.5 var(--mono);
+  font: var(--text-sm)/1.5 var(--mono);
   color: var(--red);
   white-space: pre-wrap;
   word-break: break-word;
@@ -768,48 +1775,71 @@ tr.clickable {
   overflow: auto;
 }
 
-/* Confirm modal */
+/* Confirm modal
+   A native <dialog>, so the browser owns showing/hiding and the top-layer placement.
+   That removes the work the old `.log-overlay` rules were doing: no `display:none`
+   default (the dialog is hidden until `open`), no `position: fixed; inset: 0`, and no
+   `z-index` — the top layer sits above every stacking context by definition.
+   What is left is centring the box and painting the backdrop. */
+.confirm-dialog {
+  padding: 0;
+  border: 0;
+  background: none;
+  max-width: none;
+  max-height: none;
+  /* `margin: auto` is what centres a top-layer dialog; the inset defaults are `auto`,
+     so this resolves against the viewport rather than a containing block. */
+  margin: auto;
+}
+
+/* `::backdrop` replaces the semi-transparent overlay div. It inherits custom properties
+   from the originating element, so the themed token resolves here — verified rendered in
+   both themes rather than assumed, since that inheritance was not always supported. */
+.confirm-dialog::backdrop {
+  background: var(--shadow-overlay);
+}
+
 .confirm-panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: var(--space-3xl);
   width: 400px;
   max-width: 90vw;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 60px var(--shadow-confirm);
 }
 
 .confirm-icon {
-  font-size: 48px;
+  font-size: var(--text-display);
   line-height: 1;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-xl);
   color: var(--yellow);
 }
 
 .confirm-panel h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-3xl);
   color: var(--text);
 }
 
 .confirm-panel p {
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-2xl);
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: var(--text-lg);
   line-height: 1.5;
 }
 
 .confirm-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-lg);
   justify-content: center;
 }
 
 .confirm-actions button {
   min-width: 100px;
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: var(--space-md) 20px;
+  font-size: var(--text-lg);
 }
 
 /* Spinner */
@@ -839,3 +1869,4012 @@ tr.clickable {
     transform: rotate(360deg);
   }
 }
+/* ── Card row layout (phone) ──────────────────────────────────────────────────
+   Below 520px a row stops being a row and becomes a card in four bands:
+
+     status  | health
+     name
+     id | pid / cpu | ram / disk | uptime
+     restart stop reload logs details
+
+   Grid, not `display: block` with one value per line: the metrics pair naturally
+   (id with pid, cpu with ram) and two columns halve the card height, so four
+   cards fit a phone screen instead of two.
+   `display: grid` strips the implicit table semantics exactly as `block` does —
+   the explicit role attributes in the markup are what keep the accessibility
+   tree intact. Do not remove them.
+   Labels come from `data-label`, generated from the same COLUMNS list as the
+   headings, so a renamed heading cannot drift from its card label. */
+@media (max-width: 520px) {
+  #table,
+  #table thead,
+  #table tbody,
+  #table tr,
+  #table td,
+  #table th {
+    display: block;
+  }
+
+  /* Headings are redundant once each value carries its own label via data-label.
+     display:none removes the header from both layout and the accessibility tree,
+     so a screen reader announces column names once (from the per-cell label) rather
+     than twice (header + card label). The columnheader roles in the header are no
+     longer needed when the cards carry their own labels — COLUMNS is the single
+     source of truth for both header text and data-label. */
+  #table thead {
+    display: none;
+  }
+
+  /* Nothing overflows sideways once rows are cards, so the wrapper's scroll and
+     its sticky containing block are both unwanted here. */
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  #table tr[data-name] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-md);
+    background: var(--bg-panel);
+    
+  }
+
+  /* Band 1: status and health share the top line. Explicitly placed so they sit
+     side by side regardless of DOM order — health is the tenth cell. */
+  #table tr[data-name] td.col-status {
+    grid-area: 1 / 1;
+  }
+
+  #table tr[data-name] td.col-health {
+    grid-area: 1 / 2;
+    justify-content: flex-end;
+  }
+
+  #table tr[data-name] td.col-status,
+  #table tr[data-name] td.col-health {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-hover);
+  }
+
+  /* Band 2: the name is the card's identity, so it spans and reads as a heading
+     rather than a labelled field. */
+  #table tr[data-name] td.name-cell {
+    grid-area: 2 / 1 / 2 / -1;
+    max-width: none;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-lg);
+    padding: 9px var(--space-lg);
+  }
+
+  #table tr[data-name] td.name-cell .cell-value {
+    display: block;
+    
+    
+    word-wrap: break-word;
+  }
+
+  /* Band 3: metrics auto-flow two per line. `order` sets the reading pairs —
+     DOM order would give uptime|cpu and split ram from cpu. */
+  #table tr[data-name] td.col-id { order: 1; }
+  #table tr[data-name] td.col-pid { order: 2; }
+  #table tr[data-name] td.col-cpu { order: 3; }
+  #table tr[data-name] td.col-ram { order: 4; }
+  #table tr[data-name] td.col-disk { order: 5; display: flex; }
+  #table tr[data-name] td.col-uptime { order: 6; }
+  #table tr[data-name] td.actions { order: 10; }
+
+  /* The divider between the two metric columns. These are the right-hand cells
+     under the order above. */
+  #table tr[data-name] td.col-pid,
+  #table tr[data-name] td.col-ram,
+  #table tr[data-name] td.col-uptime {
+    border-inline-start: 1px solid var(--border);
+  }
+
+  /* Band 4: actions span the card and wrap rather than overflow. */
+  #table tr[data-name] td.actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    justify-content: flex-start;
+    border-top: 1px solid var(--border);
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  /* Margin-based spacing would fight the flex gap and leave a ragged second row. */
+  #table tr[data-name] td.actions button + button {
+    margin-left: 0;
+  }
+
+  #table tr[data-name] td.actions::before {
+    display: none;
+  }
+
+  /* Every metric cell: label left, value right, on one line. */
+  #table tr[data-name] td {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    border-bottom: none;
+    padding: 7px var(--space-lg);
+    text-align: left;
+    min-width: 0;
+  }
+
+  #table tr[data-name] td::before {
+    content: attr(data-label);
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 0 0 auto;
+  }
+
+  #table tr[data-name] td.name-cell::before {
+    display: none;
+  }
+
+  /* Numeric cells are right-aligned in the table; in a card the value follows its
+     label, so that alignment would strand it against the divider. */
+  #table tr[data-name] td.num {
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  /* Restarts stays out of the card: it is in the detail panel, and a fourth
+     metric row costs more height than the number earns at a glance. */
+  #table tr[data-name] td.col-restarts {
+    display: none;
+  }
+
+  /* Group headers, inline errors, and expanded descendant panels are full-width
+     banners, not cards. */
+  #table tr.group-row,
+  #table tr.error-row,
+  #table tr.descendant-row {
+    display: block;
+  }
+
+  #table tr.group-row td,
+  #table tr.error-row td,
+  #table tr.descendant-row td {
+    display: block;
+    text-align: left;
+  }
+
+  #table tr.group-row td::before,
+  #table tr.error-row td::before,
+  #table tr.descendant-row td::before {
+    display: none;
+  }
+
+  /* An error must stay readable: wrap it rather than truncate to one line. */
+  #table tr.error-row td .error-inline {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    padding-left: 0;
+  }
+}
+
+/* ── Overlay panels at phone width ────────────────────────────────────────────
+   A floating panel is right on a desktop, where the page behind it is context.
+   On a phone it is just a smaller screen inside a screen: 2vh/2vw of backdrop
+   costs height that log lines need, and the panel's `min-width: 320px` plus that
+   padding means it can never actually fit 390px anyway.
+   So below 520px the panel takes the whole viewport. `dvh`, not `vh`, because
+   mobile browser chrome shrinks the visual viewport and `vh` would leave the
+   bottom of the panel under the address bar. */
+/* Also matches a phone in landscape: 844x390 is wide but only 390 tall, and a floating
+   panel there is worse than in portrait. Width alone missed it — measured resize handles
+   visible and backdrop dismissal live at 844x390. Coarse pointer qualifies the height arm so
+   a short desktop window keeps its floating panel. Kept in sync with
+   PANEL_FULL_VIEWPORT_QUERY in dashboard.js. */
+@media (max-width: 520px), (max-height: 520px) and (any-pointer: coarse) {
+  .log-overlay,
+  .detail-overlay {
+    padding: 0;
+  }
+
+  .log-panel,
+  .detail-panel {
+    /* `100%` of the overlay, not `100vw`: `vw` includes the scrollbar gutter, which measured
+       a 375px panel inside a 390px viewport — a 15px strip of backdrop down one edge. */
+    width: 100%;
+    height: 100dvh;
+    min-width: 0;
+    max-width: none;
+    border: none;
+    border-radius: 0;
+    /* A drag offset carried over from a wider layout would push a full-viewport
+       panel partly off-screen, and there is no backdrop left to grab it back. */
+    transform: none !important;
+  }
+
+  /* Resize handles are a pointer affordance and meaningless when the panel is
+     the viewport; they would also sit under the finger at the screen edges. */
+  .log-panel .resize-handle,
+  .detail-panel .resize-handle {
+    display: none;
+  }
+
+  /* The header is no longer a drag surface, so it should not claim to be one.
+     The JS drag handler is also gated on this width. */
+  .log-panel .log-head,
+  .detail-panel .log-head {
+    cursor: default;
+  }
+}
+
+/* Secondary log controls.
+   Inline and always visible for a pointer: the header has room, and hiding controls behind a
+   toggle on a desktop is a regression. */
+.log-more-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 520px), (max-height: 520px) and (any-pointer: coarse) {
+  /* Collapsed by default; the More button reveals the group. Grid-column-wide when open so
+     it wraps as its own row rather than pushing the title and Close around. */
+  .log-more-group {
+    display: none;
+    gap: var(--space-md);
+    width: 100%;
+  }
+
+  .log-more-group.open {
+    display: flex;
+  }
+
+  /* Long process names must not push Close off the header. */
+  .log-panel .log-head h2,
+  .detail-panel .log-head h2 {
+    min-width: 0;
+    
+    
+    word-wrap: break-word;
+    font-size: var(--text-xl);
+  }
+
+  /* The search field is the one header control that can afford to shrink. */
+  .log-panel .log-search {
+    flex: 1 1 120px;
+    min-width: 0;
+    width: auto;
+  }
+
+  /* The spacer's job is to push controls right on a wide header; at phone width it would
+     only add an empty row. */
+  .log-panel .log-head .spacer,
+  .detail-panel .log-head .spacer {
+    display: none;
+  }
+
+  .log-panel .log-head,
+  .detail-panel .log-head {
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-lg);
+  }
+}
+
+/* Standalone log page at phone width.
+   The resource strip carries eight items. Wrapping them cost 105px of a 844px screen — five
+   rows of numbers above the log they describe. One scrollable row instead: the first few
+   items (status, pid, uptime) stay visible, the rest are a swipe away, and the log keeps the
+   height. `-webkit-overflow-scrolling` is what makes that swipe feel native on iOS. */
+@media (max-width: 520px), (max-height: 520px) and (any-pointer: coarse) {
+  .log-stats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 14px;
+    padding: var(--space-xs) var(--space-lg);
+    /* Momentum scrolling on a strip this short reads as a wobble; snapping makes it
+       deliberate. */
+    scroll-snap-type: x proximity;
+  }
+
+  .log-stats .ls-item {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+  }
+}
+
+
+/* ── Bottom control bar (mobile and small tablet) ─────────────────────────────
+   Reachability, not fashion. These are the controls an operator taps most, and at
+   the top of an 844px screen they sit furthest from the thumb. Pinned to the
+   bottom edge they are always in reach and always visible, so filtering or
+   refreshing no longer costs a scroll back to the top.
+   This repositions the SAME toolbar rather than adding a second one: one set of
+   controls, one set of listeners, nothing to keep in sync.
+   Breakpoint matches the reduced row action set (700px): both decisions rest on
+   the same premise, that a thumb rather than a cursor is doing the work. */
+@media (max-width: 700px) {
+  /* The toolbar becomes a bottom nav. Reachability, not fashion: these are the controls
+     an operator taps most, and at the top of an 844px screen they sit furthest from the
+     thumb. Pinned to the bottom edge they are always in reach and always visible, so
+     filtering or refreshing no longer costs a scroll back to the top.
+     This repositions the SAME toolbar rather than adding a second one: one set of
+     controls, one set of listeners, nothing to keep in sync.
+     The bar now has two layers: `.nav-bar` (always visible: filters / refresh / stop /
+     restart all) and `.filter-panel` (collapsible: search, group, status chips). */
+  .toolbar {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 20;
+    margin-bottom: 0;
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-sm) clamp(10px, 3vw, 16px);
+    /* Clears the iOS home indicator; resolves to 0 everywhere else. */
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    /* Lifts the bar off the content scrolling underneath it. */
+    box-shadow: 0 -4px 16px var(--shadow-panel);
+  }
+
+  /* Five equal cells: the long "Restart All" label ellipsizes rather than forcing a wider
+     track; "Host" joined the strip as the doorway to the phone overlay (task 2.3).
+     `display: contents` above is replaced wholesale — a grid item ignores flex
+     sizing, so the desktop contents trick cannot survive here. */
+  .nav-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-2xs);
+  }
+
+  /* App-style tab cells: icon above a small label on a flat surface. No button chrome —
+     a filled frame inside a bottom bar reads as a button nested in a bar, not as a bar
+     item. The selected cell tints the accent; the rest stay dim until pressed.
+     The hover rules exist to neutralise the base button:hover tint: on a touch screen
+     :hover sticks after a tap, so pressed feedback must not leave paint behind. */
+  .nav-bar button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    padding: var(--space-2xs) var(--space-3xs);
+    min-width: 0;
+    color: var(--text-dim);
+  }
+
+  .nav-bar button:hover:not(:disabled),
+  .nav-bar button:active {
+    background: var(--bg-hover);
+  }
+
+  .nav-bar button .nav-label {
+    max-width: 100%;
+    
+    
+    word-wrap: break-word;
+    font-size: var(--text-2xs);
+    font-weight: 500;
+  }
+
+  .nav-bar button svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    /* A tapped cell reacts: the icon shrinks a hair and springs back. */
+    transition: transform 0.1s ease;
+  }
+
+  .nav-bar button:active svg {
+    transform: scale(0.88);
+  }
+
+  /* The filter toggle is the one stateful cell — an open panel tints it, exactly as a
+     selected tab keeps its color while the others go dim. `display: flex` is mandatory:
+     the base rule hides this toggle on the desktop toolbar, and this query is the only
+     place it may show again. The badge is pinned to the cell's corner, app-style. */
+  #filter-toggle {
+    display: flex;
+    position: relative;
+    word-wrap: break-word;
+  }
+
+  #filter-toggle[aria-expanded="true"] {
+    color: var(--accent);
+  }
+
+  .filter-badge {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    min-width: 16px;
+    text-align: center;
+    line-height: 16px;
+  }
+
+  /* Refresh keeps its "primary" class for the desktop button, but as a tab cell it must
+     look like its siblings: the accent belongs to the selected cell, not to a position. */
+  .nav-bar .primary {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .nav-bar .primary:hover:not(:disabled),
+  .nav-bar .primary:active {
+    background: var(--bg-hover);
+  }
+
+  /* Filter panel: collapsed by default, slides open on demand. `grid-template-rows`
+     keyframing is the height animation that needs no measured value — 0fr collapses the
+     row, 1fr grows it — and `visibility` keeps the hidden panel out of both the tab order
+     and the accessibility tree (0fr alone would leave focusable, invisible inputs).
+     `order: -1` puts the panel ABOVE the nav cells: a sheet slides up over the content,
+     with the actions (which include closing it) still under the thumb. The panel lives
+     INSIDE the fixed toolbar, so its expanded height is picked up by the same
+     ResizeObserver that publishes `--bottom-bar-h`; main's clearance follows with no
+     second measurement. */
+  .filter-panel {
+    order: -1;
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    /* `visibility` swaps instantly on close to hide the still-shrinking panel, and on
+       open it must appear immediately (the height grows into view regardless). */
+    transition: grid-template-rows 0.2s ease, visibility 0s linear 0.2s;
+  }
+
+  .filter-panel.open {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition: grid-template-rows 0.2s ease;
+  }
+
+  /* The 0fr row needs its child to have a measurable height: `overflow: hidden` contains
+     it, `min-height: 0` stops the input's intrinsic min from keeping the row open. */
+  .filter-panel-inner {
+    
+    min-height: 0;
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  /* Search spans the full panel width — it is the filter that gives way when width runs
+     short, and inside the panel there is nothing else on its row. */
+  .filter-panel-inner input[type="search"] {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+
+  .filter-panel-inner select {
+    grid-column: 1 / -1;
+  }
+
+  /* The status chips take a row of their own below search and group. */
+  .filter-panel-inner .stats {
+    grid-column: 1 / -1;
+  }
+
+  /* Progress is ambient; the spinner is the only feedback that survives on the
+     fixed strip. The "updated" hint lives in the header and is not hidden here. */
+  .toolbar .spinner {
+    display: none;
+  }
+
+  /* Fixed elements leave no space of their own, so the last card would sit behind
+     the bar. The fallback is one nav row; the measured `--bottom-bar-h` replaces it
+     as soon as the ResizeObserver publishes — the panel adds its own height when open. */
+  main {
+    padding-bottom: calc(var(--bottom-bar-h, 60px) + env(safe-area-inset-bottom));
+  }
+
+  /* Scroll clearance, which is a DIFFERENT thing from the content clearance above and
+     is why both are needed (WCAG 2.2 SC 2.4.11 Focus Not Obscured).
+
+     `padding-bottom` on `main` stops content coming to rest under the fixed bar. It does
+     not stop the BROWSER scrolling a focused element to a position under it: when focus
+     moves to a row near the end of the list, the scroll-into-view lands on the element's
+     own box, which the fixed bar then covers. `scroll-padding-bottom` on the scroll
+     container is what reserves that space in the scrollport, so the focused row stops
+     above the bar instead of behind it.
+
+     Declared on the scrolling element (the viewport here, so `:root`) rather than on
+     `main`: `scroll-padding` applies to the scroll container, and `main` is not one. */
+  :root {
+    scroll-padding-bottom: calc(var(--bottom-bar-h, 60px) + env(safe-area-inset-bottom) + 8px);
+  }
+}
+
+/* ── Top bar at narrow widths ─────────────────────────────────────────────────
+   Measured before this: 160px of a 844px phone screen (19%) across three rows —
+   title, address, then six stat chips wrapping onto two lines — all above the
+   first process. The header is orientation, not content; it should not cost a
+   fifth of the screen.
+   Three changes, cheapest first: drop the daemon address (ambient, and the page
+   you are on is the daemon), keep the chips to one scrollable row, and tighten
+   the padding. */
+/* Height arm included for the same reason the overlay panels have one: a phone in landscape
+   is 844px wide and 390px tall, so a width-only query missed it entirely and the header took
+   112px — 28.8% of the viewport — on the axis that was scarce. Coarse pointer qualifies the
+   height arm so a short desktop window keeps its full header. */
+@media (max-width: 700px), (max-height: 520px) and (any-pointer: coarse) {
+  header {
+    gap: var(--space-md);
+    padding: var(--space-md) clamp(10px, 3vw, 16px);
+    /* The chip row is the only part allowed to wrap to its own line. */
+    flex-wrap: wrap;
+  }
+
+  /* The address answers "which daemon am I looking at" — worth a row on a wall
+     display, not on a phone, where you got here by opening this daemon. The env
+     label stays: it is what distinguishes LAB from production at a glance. */
+  .addr {
+    display: none;
+  }
+
+  /* The `.stats` rules that used to live here are gone: the chips moved out of `<header>`
+     and into `.toolbar`, so styling them from the header block would reach across to an
+     element that is no longer inside it — and it duplicated the toolbar rule further down,
+     which won on source order anyway. One owner, one rule. */
+}
+
+/* The stat chips are status filters, not labels — tapping one filters the table.
+   Phase 4 sized every `button` for touch and missed these, because they are spans:
+   measured 25px tall against a 44px minimum, which is a filter you cannot reliably
+   hit. Sized here on pointer capability, exactly as the buttons are. */
+@media (any-pointer: coarse) {
+  .stat {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+  }
+}
+
+/* ── Host panel ───────────────────────────────────────────────────────────────
+   Its own bordered region, above the process table and labelled "Host". The
+   separation is a requirement rather than decoration: a host CPU of 99% sitting
+   beside an idle service is not a contradiction, and only the framing makes that
+   read correctly. Left accent stripe so the boundary survives a glance.
+   Vanilla CSS, no build step — these styles are inlined by render_dashboard_html. */
+.host-panel {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  margin-bottom: 14px;
+}
+
+.host-panel[hidden] {
+  display: none;
+}
+
+.host-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.host-head h2 {
+  font-size: var(--text-sm);
+  margin: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+
+.host-identity {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  min-width: 0;
+  
+  
+  word-wrap: break-word;
+}
+
+.host-body {
+  display: grid;
+  /* Intrinsic rather than a breakpoint ladder: the panel is a grid of small
+     independent figures, so it can size itself off available width. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+
+.host-body[hidden] {
+  display: none;
+}
+
+.host-metric {
+  background: var(--bg-panel);
+  padding: var(--space-sm) var(--space-lg);
+  min-width: 0;
+}
+
+.host-metric-key {
+  display: block;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.host-metric-val {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--text-md);
+  margin-top: var(--space-3xs);
+  
+  
+  word-wrap: break-word;
+}
+
+/* Unavailable is dimmed and italic, never a zero. A "0%" here would read as a
+   measurement of an idle machine; this reads as an absence, which is what it is. */
+.host-metric-val.na {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Utilisation bar. Colour tracks severity so a filling disk is visible without
+   reading the number. */
+.host-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  margin-top: 5px;
+  
+}
+
+.host-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--green);
+  transform-origin: left;
+  transition: transform var(--transition);
+}
+
+.host-bar span.warn {
+  background: var(--yellow);
+}
+
+.host-bar span.bad {
+  background: var(--red);
+}
+
+/* Interfaces and filesystems are lists, not single figures, so they span the grid
+   and scroll rather than stretching the panel to the height of a 24-interface host. */
+.host-list {
+  grid-column: 1 / -1;
+  background: var(--bg-panel);
+  padding: var(--space-sm) var(--space-lg);
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.host-list h3 {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin: 0 0 var(--space-xs);
+  font-weight: 600;
+}
+
+.host-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 3px 0;
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.host-row-name {
+  font-family: var(--mono);
+  flex: 0 0 auto;
+  max-width: 45%;
+  
+  
+  word-wrap: break-word;
+}
+
+.host-row-detail {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  margin-left: auto;
+  flex: 0 0 auto;
+  word-wrap: break-word;
+}
+
+@media (any-pointer: coarse) {
+  #host-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Sidebar layout ───────────────────────────────────────────────────────────
+   Process list plus host figures side by side. The list is the content, so it takes
+   the free space and the sidebar takes a fixed share.
+   Right, and only right. Host figures are ambient context rather than navigation: a
+   left sidebar pushes the table off the natural reading origin, and two sidebars
+   would take ~480px of a 1440px viewport, leaving the table narrower than its ten
+   columns need — which is how the overflow removed in `dashboard-responsive` would
+   come back.
+   Above the `main` max-width of 1200px there is room for both; below the breakpoint
+   the sidebar returns to flow above the table, because a column that narrow is worse
+   than a banner. */
+@media (min-width: 1250px) {
+  /* The 1200px cap was sized for a single column. A 300px sidebar plus a 16px gap leaves the
+     table 836px inside it, and the ten-column table needs 845 — measured as a 9px wrapper
+     scroll, i.e. the overflow this layout was supposed to avoid. Widened so the sidebar is
+     additional space rather than space taken from the list. */
+  main {
+    max-width: 97.5vw;
+  }
+
+  .layout {
+    display: grid;
+    /* `minmax(0, 1fr)` not `1fr`: a grid track's automatic minimum is its content, so
+       a wide table would refuse to shrink and push the sidebar off-screen instead of
+       scrolling inside its own wrapper. */
+    /* Sidebar FIRST: the panel defaults to the left of the table. The DOM order is
+       unchanged — table then aside — so tab order and screen-reader order still reach
+       the content before the ambient host figures; only the painted columns swap. */
+    grid-template-columns: var(--sb-width) minmax(0, 1fr);
+    /* Row 1 hosts the toolbar (right column, above the table); row 2 the table. The
+       sidebar spans both rows so its top edge aligns with the toolbar row — the
+       "controls and sidebar start at the same height" layout. */
+    grid-template-rows: auto 1fr;
+    gap: var(--space-xl);
+    align-items: start;
+  }
+
+  /* The toolbar now lives INSIDE the grid (moved from `main` in dashboard-layout), as the
+     first row of the table's column: it is the control strip for the list, so it belongs
+     to the list's column, not to the whole layout. The 16px grid gap between rows
+     replaces the old standalone `margin-bottom`, which would otherwise double the
+     spacing. */
+  .layout > .toolbar {
+    grid-column: 2;
+    grid-row: 1;
+    margin-bottom: 0;
+  }
+
+  /* DOM order is table then aside, which is the reading order we want. Placing the
+     sidebar explicitly keeps that true rather than relying on source order. */
+  .layout > .table-wrap {
+    grid-column: 2;
+    /* `grid-row: 2` is REQUIRED, not decorative. The DOM order is table then aside, so
+       auto-placement fills column 2 of row 1 with the table and then cannot place the
+       panel at column 1 of the SAME row — the sparse packing cursor has already passed
+       it — and drops the panel into row 2, underneath the table. Measured: the panel's
+       rect top was 1859px with `position: sticky` computing correctly at 64px, because a
+       sticky element still cannot rise above its own grid row. That is the "terlalu turun
+       ke bawah" on the left side: not an offset problem, a placement one. */
+    grid-row: 2;
+  }
+
+  .layout > .host-panel {
+    grid-column: 1;
+    /* Spans both grid rows: starts level with the toolbar (row 1) and runs the full
+       height of the table column (row 2). */
+    grid-row: 1 / span 2;
+    /* Follows the table down rather than scrolling away: on a long process list the
+       host figures are the context you want while reading row 40. */
+    position: sticky;
+    /* 58px: the page header's measured 56px plus 2px of clearance.
+       This is a FLOOR, not a preference. The header is itself `position: sticky; top: 0`
+       with `z-index: 10`, so any panel offset below its height is painted underneath it.
+       Measured at `top: 8px`: scrolled to 800px the panel stuck correctly at 8px, but
+       `elementFromPoint` at the panel's own top-left returned HEADER and 48px of the
+       panel was occluded — exactly the `.host-head` strip carrying the hostname and both
+       icon buttons. Raising the panel further is not a CSS offset problem: it requires
+       the sticky header to be shorter, which is a separate decision.
+
+       58px still left a measured 4px overlap (panel rect top 52 against a header bottom
+       of 56, constant across scroll positions 400/800/1500), because the offset resolves
+       against a scrollport whose top edge sits 6px above the viewport rather than against
+       the viewport itself. 64px is the measured value that clears it, not a guess.
+       Still 6px above the original 70px, which was the actual complaint. */
+    top: 64px;
+    margin-bottom: 0;
+  }
+
+  /* One column in a 300px sidebar. The auto-fit grid would otherwise try two and
+     leave each figure too narrow to read. */
+  .layout > .host-panel .host-body {
+    grid-template-columns: 1fr;
+  }
+
+  /* The sidebar is always visible at this width — the body toggle (expand/collapse)
+     has no meaning when the panel is pinned beside the table. The side-swap control
+     stays: moving the panel to the other side is a layout preference, not a
+     visibility toggle. */
+  #host-toggle {
+    display: none;
+  }
+
+  /* The empty state belongs to the list, not the sidebar, so it tracks the table's column. */
+  .layout > .empty {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* Below the sidebar breakpoint the sidebar is a banner again, above the table. */
+@media (max-width: 1249px) {
+  .layout > .host-panel {
+    /* Order rather than DOM reshuffling: the markup keeps the list first for tab order
+       and screen readers, and this puts the host figures above it visually. */
+    order: -1;
+  }
+
+  /* The move-side control only means something when the panel IS a sidebar: below the
+     breakpoint it is a banner (or an overlay on mobile), so the side it would move to
+     does not exist. Leaving it visible would offer a destination that the CSS cannot
+     honour — the `data-host-side` transform rules are scoped to the 1250px+ layout. */
+  #host-side {
+    display: none;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+
+
+
+
+/* Regions inside the sidebar. Each subsystem owns one, so a partial update writes into an
+   existing node rather than rebuilding the panel. */
+.host-failures {
+  grid-column: 1 / -1;
+  background: var(--bg-panel);
+}
+
+.host-failures[hidden],
+.host-list[hidden] {
+  display: none;
+}
+
+/* Connection lost. The figures stay — they were true when they arrived, and blanking them on
+   every blip would be worse — but the panel says so, because a stale reading presented as
+   current is exactly what this capability exists to prevent. `EventSource` reconnects itself,
+   and the class is cleared on `open`. */
+.host-panel.host-stale {
+  border-left-color: var(--text-dim);
+}
+
+.host-panel.host-stale .host-head::after {
+  content: "reconnecting…";
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ── Status filters, phone layout ───────────────────────────────────────────
+   The chips live inside `.filter-panel-inner` with search and the group select, so at
+   narrow widths the whole panel slides up as one unit and its height is covered by the
+   same measured `--bottom-bar-h`. The chip strip itself stays one scrollable row: six
+   chips will not fit a 390px viewport, and wrapping them would grow the opened panel by
+   an extra 44px row.
+
+   Desktop is untouched — there `.filter-panel` is `display: contents`, so none of this
+   applies and the chips flow in the toolbar row like the other controls. */
+@media (max-width: 700px) {
+  .filter-panel-inner .stats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: var(--space-xs);
+    /* Chips follow search and the group select in DOM order, but a status glance is the
+       fastest way to read a list — keep the chips pinned ABOVE the two inputs inside the
+       opened panel. `order` works in grid the same way it did in the old flex toolbar. */
+    order: -1;
+    min-width: 0;
+  }
+
+  .filter-panel-inner .stats::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-panel-inner .stat {
+    flex: 0 0 auto;
+  }
+}
+
+/* ── Configuration advisory marker ────────────────────────────────────────────
+   Beside the process name rather than in a column of its own: the ten-column table
+   already needs 845px, and an eleventh would reintroduce the horizontal overflow the
+   responsive work removed. It also keeps the marker next to what it describes in the
+   phone card layout, where most columns are hidden.
+   Text plus colour, never colour alone — a coloured dot says nothing to an operator
+   who cannot distinguish the colours, and nothing at all in a screenshot. */
+.advisory-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--space-xs);
+  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font-family: var(--sans);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  /* The tooltip carries the consequences, so the cursor should say there is something to read. */
+  cursor: help;
+}
+
+/* Info is dimmed rather than coloured: it is worth knowing, not worth interrupting for. */
+.advisory-flag.info {
+  color: var(--text-dim);
+}
+
+.advisory-flag.warning {
+  color: var(--yellow);
+}
+
+.advisory-flag.critical {
+  color: var(--red);
+  /* Filled at critical only. A disabled circuit breaker should be the one marker that catches an
+     eye scanning a table of forty processes. */
+  background: var(--red);
+  color: var(--accent-ink);
+  border-color: var(--red);
+}
+
+@media (any-pointer: coarse) {
+  /* A tooltip is unreachable without a cursor, so the marker becomes a tap target that opens the
+     detail panel instead. Sized to the same 44px minimum as every other control. */
+  .advisory-flag {
+    min-width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    margin-left: var(--space-sm);
+  }
+}
+
+/* Advisory entries in the detail panel. The table marker leads here, so this is where the whole
+   consequence belongs rather than a truncated tooltip. */
+.advisory-row {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+}
+
+.advisory-row:last-of-type {
+  border-bottom: none;
+}
+
+.advisory-row .advisory-flag {
+  margin-left: 0;
+  flex: 0 0 auto;
+  cursor: default;
+}
+
+.advisory-text {
+  min-width: 0;
+}
+
+.advisory-consequence {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* The offending settings, so an operator knows what to change without reading the prose twice. */
+.advisory-evidence {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  margin-top: var(--space-2xs);
+}
+
+/* Stated explicitly, because a red marker on a table row reads as "something was done to this
+   process". Nothing was: acting on an advisory is a deliberate non-goal. */
+.advisory-note {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  font-style: italic;
+  margin: var(--space-sm) 0 0;
+}
+
+} /* ── end @layer base ─────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR — modern CSS rebuild
+   ══════════════════════════════════════════════════════════════════════════════
+   Everything below lives in @layer components, so it beats the generic `button`
+   and heading rules in @layer base without a single extra selector or !important.
+   That is the entire reason the layer exists: `#host-toggle` is a `button`, and
+   before layering, restyling it meant either out-specifying `button` or repeating
+   `.host-head button` on every rule.
+
+   Vanilla CSS, no build step — inlined by render_dashboard_html. */
+@layer components {
+
+/* ── Typed custom properties ──────────────────────────────────────────────────
+   `@property` rather than a plain `--var`, because an untyped custom property is
+   a string to the animation engine and silently refuses to transition. Typing it
+   makes the interpolation legal, which is what lets the accent rail grow and the
+   chevron turn without a class swap on each frame. */
+@property --rail-scale {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --panel-lift {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* ── Derived sidebar palette ──────────────────────────────────────────────────
+   Derived with `color-mix()` from the existing measured tokens rather than added
+   as twelve new hex values. That is deliberate: the palette in @layer base was
+   contrast-measured against AA, and hand-picking new shades beside it would fork
+   that work and let the two drift. Mixing from `--bg-panel`, `--accent` and
+   `--text` means every value here follows the dark-mode block automatically, and
+   there is exactly one place to change a colour.
+
+   `oklch()` for the state hues: lightness is perceptually uniform there, so the
+   green, amber and red rails read as the same weight against the panel. In sRGB
+   an equal-lightness green looks considerably brighter than an equal-lightness
+   red, which is what makes a "healthy" rail shout louder than a failing one. */
+.host-panel {
+  /* Surfaces: a tint of the accent into the panel, not a separate grey. */
+  --sb-surface: color-mix(in srgb, var(--bg-panel) 97%, var(--accent));
+  --sb-surface-raised: color-mix(in srgb, var(--bg-panel) 92%, var(--accent));
+  --sb-hover: color-mix(in srgb, var(--bg-panel) 88%, var(--accent));
+  /* Hairlines at two weights, so a section edge and a row edge are distinguishable. */
+  --sb-line: color-mix(in srgb, var(--border) 70%, transparent);
+  --sb-line-strong: var(--border);
+  /* Accent washes for the header and the active rail. */
+  --sb-accent-wash: color-mix(in srgb, var(--accent) 12%, transparent);
+  --sb-accent-edge: color-mix(in srgb, var(--accent) 45%, transparent);
+  --sb-focus: var(--accent);
+  /* Severity hues, per theme.
+     MEASURED, not chosen by eye. A single oklch lightness cannot clear the WCAG
+     1.4.11 3:1 floor for non-text against BOTH surfaces: L=0.72 green measures
+     8.03:1 on the #141414 dark panel but only 2.30:1 on white — a fail I shipped
+     in the first pass and caught by computing it rather than looking at it.
+     Light-mode values are the lowest lightness that clears 4.3:1 on white;
+     dark-mode values keep the brighter ramp that reads correctly on #141414.
+       light: green 4.34:1  amber 4.36:1  red 4.77:1  (on #ffffff)
+       dark:  green 8.03:1  amber 7.24:1  red 6.21:1  (on #141414)
+     Chroma and hue are unchanged, so the palette still reads as one family. */
+  --sb-ok: light-dark(oklch(0.55 0.19 149), oklch(0.72 0.19 149));
+  --sb-warn: light-dark(oklch(0.58 0.17 75), oklch(0.72 0.17 75));
+  --sb-crit: light-dark(oklch(0.58 0.21 25), oklch(0.72 0.21 25));
+  /* Network direction hues. Blue for down, violet for up — btop's own pairing.
+     Both measured against BOTH surfaces at the 3:1 non-text floor:
+       light: rx 3.92:1  tx 4.35:1  (on #ffffff)
+       dark:  rx 7.49:1  tx 6.80:1  (on #141414)
+     What the numbers also say: the two hues differ from EACH OTHER by only
+     1.13:1 in luminance, so colour alone cannot separate them for a
+     red-green or blue-yellow colour-blind reader. That is why the upload trace
+     is dashed and both rates carry a ↓/↑ glyph — the dash is the real
+     distinguisher and the colour is reinforcement, not the other way round. */
+  --sb-net-rx: light-dark(oklch(0.60 0.15 245), oklch(0.72 0.15 245));
+  --sb-net-tx: light-dark(oklch(0.60 0.19 320), oklch(0.72 0.19 320));
+  /* The `--sb-*-text` severity tier used to be defined HERE, scoped to the panel. It is
+     now in `:root` — see the note there. Anything in this panel still resolves it by
+     inheritance, so no rule below changed. */
+  /* Direction glyphs (↓/↑) are 9px TEXT, so they need 4.5:1 like the severity text above — the
+     meter-tier `--sb-net-*` values measured 3.78:1 and 4.19:1 in light mode.
+     Per theme, because there is no single lightness that clears 4.5:1 against BOTH surfaces: L=0.54
+     gives light 4.77 but dark 3.63, and L=0.72 gives dark ~7 but light ~2.5. Measured:
+       rx  light L=0.54 -> 4.77:1     dark L=0.72 -> 7.49:1
+       tx  light L=0.56 -> 4.97:1     dark L=0.72 -> 6.80:1 */
+  --sb-net-rx-text: light-dark(oklch(0.54 0.15 245), oklch(0.72 0.15 245));
+  --sb-net-tx-text: light-dark(oklch(0.56 0.19 320), oklch(0.72 0.19 320));
+  /* ── Type scale ─────────────────────────────────────────────────────────────
+     Four steps, assigned by ROLE. The first pass had grown to TWELVE distinct
+     font sizes in this panel (8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14, 16)
+     — found by counting them, not by looking, because at half-pixel increments the
+     difference between 9 and 9.5 is invisible individually and collectively it
+     means the hierarchy carries no information. NN/g's rule is at most three
+     contrast/size steps; four is the honest minimum here because a gauge's centre
+     number is genuinely a different tier from a row label.
+
+       micro — units, the "%" glyph, sub-lines, axis labels
+       sm    — section labels, secondary figures, core percentages
+       md    — names, primary readings
+       lg    — the one hero number inside a gauge ring
+
+     A fifth step would need a role no existing step covers. */
+  /* Re-pointed at the global type scale rather than carrying their own px values. These
+     four were the right idea — a named scale with documented roles — scoped to one panel
+     and denominated in a unit that ignores the user's font-size setting. Keeping the names
+     preserves the role vocabulary above and the 45 call sites; the VALUES now come from
+     one place, so there is a single scale instead of two that can drift.
+     `sb-text-sm` was 10.5px and resolves to the 10px step: see the --text-2xs note. */
+  --sb-text-micro: var(--text-3xs);
+  --sb-text-sm: var(--text-2xs);
+  --sb-text-md: var(--text-sm);
+  --sb-text-lg: var(--text-lg);
+  /* Shadows carry a hint of the text colour rather than pure black: pure black over
+     a dark panel is invisible, and over a light one it reads as dirt. */
+  --sb-shadow-sm: 0 1px 2px color-mix(in srgb, var(--text) 8%, transparent);
+  --sb-shadow-md:
+    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
+    0 8px 24px color-mix(in srgb, var(--text) 8%, transparent);
+  /* Motion. One duration and one curve for the whole component, so nothing feels
+     out of step with anything else. `linear()` is a real spring rather than a
+     cubic-bezier guess — it overshoots to 1.02 and settles. */
+  --sb-dur: 180ms;
+  --sb-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --sb-spring: linear(0, 0.4 18%, 0.82 38%, 1.02 62%, 1);
+}
+
+/* ── Panel shell ──────────────────────────────────────────────────────────────
+   The 3px hard accent stripe is replaced by a 1px border plus a gradient rail in a
+   pseudo-element. Same "this region is different" signal, but the rail can now
+   carry state — it goes amber or red when a subsystem fails — and it fades along
+   its length instead of stopping dead at the last row.
+
+   `container-type: inline-size` is the load-bearing addition. Every internal
+   breakpoint below asks how wide the PANEL is, not how wide the viewport is. Those
+   are different questions the moment the panel becomes a banner at 1249px: at
+   phone width the panel is ~390px, and at desktop-sidebar width it is 300px, so a
+   viewport media query gets the relationship backwards. */
+.host-panel {
+  container-type: inline-size;
+  container-name: sidebar;
+  /* NOT `position: relative`. This rule is in @layer components and the sidebar's
+     `position: sticky` is in @layer base, so `relative` here won on layer order and
+     silently un-stuck the panel — measured: computed position was `relative` at
+     1600px wide, where the sidebar layout is active. `isolation` alone creates the
+     stacking context this needs, with no position value at all, so the base layer's
+     sticky survives and the banner layout below (which wants no positioning) is
+     unaffected. */
+  isolation: isolate;
+  border: 1px solid var(--sb-line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--sb-surface);
+  box-shadow: var(--sb-shadow-sm);
+  margin-bottom: 14px;
+  /* Clips the rail and the header to the rounded corner. */
+  overflow: clip;
+  transition:
+    box-shadow var(--sb-dur) var(--sb-ease),
+    border-color var(--sb-dur) var(--sb-ease);
+}
+
+/* The accent rail. A gradient that is solid at the header and fades downward, so it
+   reads as "this panel starts here" rather than as a full-height divider competing
+   with the table border beside it. */
+.host-panel::before {
+  content: "";
+  position: absolute;
+  /* `inset` shorthand, and logical `inset-inline-start` so the rail follows writing
+     direction instead of being pinned to the physical left. */
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent) 0%,
+    var(--sb-accent-edge) 55%,
+    transparent 100%
+  );
+  /* Purely decorative, so it is hidden from the accessibility tree by not being
+     content in the first place, and cannot intercept a click on a row. */
+  pointer-events: none;
+  z-index: 1;
+}
+
+.host-panel[hidden] {
+  display: none;
+}
+
+} /* ── end @layer components (part 1) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Panel header ─────────────────────────────────────────────────────────────
+   Sticky within the panel, so the "Host" label and the Hide control stay reachable
+   while the figures scroll past on a long list. `position: sticky` needs no scroll
+   listener; the `isolation: isolate` on the shell is what keeps its z-index local.
+
+   `backdrop-filter` rather than an opaque fill: the rail and any row that passes
+   under the header stay faintly visible, which reads as one surface scrolling
+   rather than two panels stacked. */
+.host-head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-md) var(--space-lg);
+  /* Semi-transparent so the blur has something to do, with an opaque fallback
+     first for anything that does not support backdrop-filter. */
+  background: var(--sb-surface-raised);
+  border-block-end: 1px solid var(--sb-line);
+}
+
+@supports (backdrop-filter: blur(8px)) {
+  .host-head {
+    background: color-mix(in srgb, var(--sb-surface-raised) 82%, transparent);
+    backdrop-filter: blur(10px) saturate(1.4);
+  }
+}
+
+/* The label. `text-wrap: balance` keeps a two-word heading from leaving one word
+   alone on a second line when the panel is narrow. */
+.host-head h2 {
+  margin: 0;
+  font-size: var(--sb-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-wrap: balance;
+  /* Cap-height alignment against the identity text beside it, where supported.
+     Progressive: without it the label sits a fraction high, which is the status quo. */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* A live status dot ahead of the label, built from the heading's own pseudo-element
+   so it costs no markup. Green by default; the panel's stale and failure states
+   below repaint it, so connection state is legible without reading text. */
+.host-head h2::before {
+  content: "";
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  flex: none;
+  /* oklch: these three states sit at one perceptual lightness, so none of them
+     shouts louder than the others purely because of its hue. */
+  background: var(--sb-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-ok) 22%, transparent);
+  transition: background var(--sb-dur) var(--sb-ease),
+              box-shadow var(--sb-dur) var(--sb-ease);
+}
+
+.host-identity {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+  /* One line, truncated. A 64-character hostname would otherwise wrap the header
+     onto a second row and shift the toggle. */
+  
+  
+  word-wrap: break-word;
+}
+
+/* ── The Hide/Show toggle ─────────────────────────────────────────────────────
+   THIS is what the cascade layer buys. `#host-toggle` is a `button.small`, so in
+   @layer base it inherits the generic button fill, border and padding. These rules
+   are in @layer components and win on layer order alone — no `#id` specificity
+   fight, no `!important`, and the generic button styling stays intact everywhere
+   else on the page.
+
+   Restyled as a quiet ghost button: at rest it is text, on hover it gains a
+   surface. A filled button here competed with the primary toolbar actions for
+   attention while doing something far less important. */
+.host-head #host-toggle {
+  --sb-btn-face: transparent;
+  background: var(--sb-btn-face);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 1px);
+  color: var(--text-dim);
+  padding: 3px 9px;
+  font: 600 var(--text-xs)/1.4 var(--sans);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background var(--sb-dur) var(--sb-ease),
+    border-color var(--sb-dur) var(--sb-ease),
+    color var(--sb-dur) var(--sb-ease);
+}
+
+.host-head #host-toggle:hover:not(:disabled) {
+  --sb-btn-face: var(--sb-hover);
+  border-color: var(--sb-accent-edge);
+  color: var(--text);
+}
+
+/* A chevron that reflects the real state, read from `aria-expanded` rather than a
+   duplicate class. The attribute is already maintained by HostPanel#setOpen for
+   screen readers, so styling from it means the visual and the announced state
+   cannot disagree — there is only one source of truth. */
+.host-head #host-toggle::after {
+  content: "";
+  display: inline-block;
+  inline-size: 0.5em;
+  block-size: 0.5em;
+  margin-inline-start: var(--space-xs);
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  /* Individual transform properties, not the `transform` shorthand: the rotation
+     can change on state without restating a translate, and the two compose. */
+  translate: 0 -1px;
+  rotate: 45deg;
+  transition: rotate var(--sb-dur) var(--sb-spring);
+}
+
+.host-head #host-toggle[aria-expanded="false"]::after {
+  rotate: -135deg;
+}
+
+} /* ── end @layer components (part 2) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Metrics grid ─────────────────────────────────────────────────────────────
+   The 1px-gap-over-a-background trick that drew the grid lines is gone. It worked,
+   but it meant the "lines" were really the container showing through, so a figure
+   could not have a radius, a hover state, or a shadow without breaking the seam.
+
+   Real gaps plus per-cell surfaces instead. `gap-*` rules would be the modern way
+   to draw the dividers back, but `column-rule`/`row-rule` on a grid is Limited
+   availability, so the cells carry their own hairlines and the layout does not
+   depend on a feature most browsers lack. */
+.host-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  padding: 0;
+  background: var(--sb-line);
+}
+
+.host-body[hidden] {
+  display: none;
+}
+
+/* Two columns once the PANEL — not the viewport — is wide enough for two readable
+   figures. This is the container query paying off: as a 300px desktop sidebar it
+   stays one column, and as a full-width banner at 1249px and below it becomes two
+   or three, without a single viewport breakpoint deciding which.
+   Name-only `@container sidebar (min-width:)` is used rather than the bare name
+   form, since name-only queries are newer than the size form. */
+@container sidebar (min-width: 420px) {
+  .host-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container sidebar (min-width: 680px) {
+  .host-body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── One figure ───────────────────────────────────────────────────────────────
+   A hover state on a read-only figure is deliberate: it confirms the cell is the
+   unit of information, which matters in a grid of small numbers where the eye
+   otherwise has to find the label/value pairing itself. */
+.host-metric {
+  position: relative;
+  min-width: 0;
+  padding: 9px var(--space-lg) var(--space-md);
+  background: var(--bg-panel);
+  transition: background var(--sb-dur) var(--sb-ease);
+}
+
+.host-metric:hover {
+  background: var(--sb-hover);
+}
+
+.host-metric-key {
+  display: block;
+  font-size: var(--sb-text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--text-dim);
+  /* Long keys ("host memory", "load average") truncate rather than wrap: a wrapped
+     key pushes the value down and makes the grid rows ragged. */
+  
+  
+  word-wrap: break-word;
+}
+
+.host-metric-val {
+  display: block;
+  margin-block-start: 3px;
+  font-family: var(--mono);
+  /* Tabular figures so a value ticking 9 → 10 does not shift the digits beside it.
+     A proportional monospace is a contradiction, but the fallback stack includes
+     UI fonts where this still matters. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-md);
+  line-height: 1.35;
+  color: var(--text);
+  
+  
+  word-wrap: break-word;
+}
+
+/* Unavailable stays dimmed and italic — never a zero. Unchanged in meaning from the
+   original rule, restated here so the components layer owns the whole component. */
+.host-metric-val.na {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ── Utilisation meter ────────────────────────────────────────────────────────
+   Colour still tracks severity, but through oklch at one lightness so a 40% green
+   bar and a 95% red bar carry equal visual weight and only the hue differs. The
+   sRGB greens and reds previously used differ in perceived brightness by roughly a
+   third, which made healthy bars the loudest thing in the panel.
+
+   The width transition is on the span, so a figure arriving from SSE animates to
+   its new value rather than jumping. */
+.host-bar {
+  block-size: 5px;
+  margin-block-start: var(--space-xs);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  
+}
+
+.host-bar span {
+  display: block;
+  block-size: 100%;
+  inline-size: 100%;
+  border-radius: inherit;
+  background: var(--sb-ok);
+  transform-origin: left;
+  transition: transform 320ms var(--sb-ease), background var(--sb-dur) var(--sb-ease);
+}
+
+.host-bar span.warn {
+  background: var(--sb-warn);
+}
+
+.host-bar span.bad {
+  background: var(--sb-crit);
+}
+
+/* ── Lists: filesystems, interfaces, components ───────────────────────────────
+   These span the grid and scroll, rather than stretching the panel to the height of
+   a 24-interface host. */
+.host-list {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-panel);
+  max-block-size: 172px;
+  overflow-y: auto;
+  /* Scrolling to the end of the interface list no longer starts scrolling the page
+     behind it. This replaces a `wheel`/`touchmove` preventDefault, which is the only
+     other way to stop scroll chaining. */
+  overscroll-behavior: contain;
+  /* Thin, theme-tracking scrollbars in one declaration that Firefox also honours —
+     `::-webkit-scrollbar` never applied there. The thumb is mixed from the text
+     colour, so it follows the dark palette with no second rule. */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 28%, transparent) transparent;
+  /* Reserves the gutter so the rows do not shift sideways the moment a list grows
+     past its max height. */
+  scrollbar-gutter: stable;
+}
+
+.host-list h3 {
+  position: sticky;
+  inset-block-start: -10px;
+  margin: -10px -12px var(--space-xs);
+  padding: var(--space-sm) var(--space-lg) var(--space-xs);
+  background: var(--bg-panel);
+  font-size: var(--sb-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--text-dim);
+  /* Sticky inside a scrolling list, so you can still tell whether you are reading
+     mounts or interfaces after scrolling ten rows. */
+  z-index: 1;
+}
+
+/* ── One list row ─────────────────────────────────────────────────────────────
+   Was a flex row with `margin-left: auto` pushing the detail right. Now a two-column
+   grid: the columns are declared, so a long mount point truncates in its own track
+   instead of squeezing the figure beside it, and the figures line up down the list
+   rather than each sitting wherever its name ended. */
+.host-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-2xs) 0;
+  font-size: var(--sb-text-md);
+  border-block-end: 1px solid transparent;
+  transition: border-color var(--sb-dur) var(--sb-ease);
+}
+
+/* Hairline between rows, but not after the last one — `gap` cannot do this because
+   the border belongs to the row, and `:not(:last-child)` on a live-updating list is
+   more robust than a trailing-margin fix. */
+.host-row:not(:last-child) {
+  border-block-end-color: var(--sb-line);
+}
+
+.host-row-name {
+  min-width: 0;
+  font-family: var(--mono);
+  /* Two lines maximum for a deeply nested mount path, then ellipsis. The old rule
+     capped the name at 45% of the row and truncated mid-path, which for
+     `/System/Volumes/Data` cut exactly the part that identifies it. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  
+  overflow-wrap: anywhere;
+}
+
+.host-row-detail {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+  word-wrap: break-word;
+  text-align: end;
+}
+
+} /* ── end @layer components (part 3) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Failure region ───────────────────────────────────────────────────────────
+   Spans the grid and is tinted, because a failed subsystem is not just another
+   figure — it is the one thing in the panel an operator can act on. */
+.host-failures {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 1px;
+  background: color-mix(in srgb, var(--red) 8%, var(--bg-panel));
+}
+
+.host-failures .host-metric {
+  background: color-mix(in srgb, var(--red) 6%, var(--bg-panel));
+}
+
+.host-failures[hidden],
+.host-list[hidden] {
+  display: none;
+}
+
+/* ── State signalling with :has() ─────────────────────────────────────────────
+   The panel restyles itself from what it CONTAINS, with no extra class for JS to
+   maintain. `.host-failures` is rendered with `hidden` when there is nothing to
+   report, so `:has(.host-failures:not([hidden]))` is exactly "a subsystem has
+   failed" — read from the DOM that already exists rather than from a flag that has
+   to be kept in sync with it.
+
+   Before :has(), this needed a `.has-failures` class toggled beside every render,
+   which is a second source of truth and the usual place these things rot. */
+.host-panel:has(.host-failures:not([hidden])) {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--sb-line-strong));
+}
+
+/* The rail goes red along its whole length, so peripheral vision catches it. */
+.host-panel:has(.host-failures:not([hidden]))::before {
+  background: linear-gradient(
+    to bottom,
+    var(--red) 0%,
+    color-mix(in srgb, var(--red) 45%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+/* And the header dot, which is the same signal at the top of the panel. */
+.host-panel:has(.host-failures:not([hidden])) .host-head h2::before {
+  background: var(--sb-crit);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-crit) 25%, transparent);
+}
+
+/* A collapsed panel loses its shadow: it is a header strip at that point, and a
+   drop shadow under a 40px bar reads as a floating toolbar. */
+.host-panel:has(.host-body[hidden]) {
+  box-shadow: none;
+}
+
+/* ── Stale connection ─────────────────────────────────────────────────────────
+   The figures stay — they were true when they arrived, and blanking them on every
+   blip would be worse — but the panel says so, because a stale reading presented as
+   current is exactly what this capability exists to prevent. EventSource reconnects
+   itself and the class is cleared on `open`. */
+.host-panel.host-stale {
+  border-color: color-mix(in srgb, var(--text-dim) 55%, var(--sb-line-strong));
+}
+
+.host-panel.host-stale::before {
+  background: linear-gradient(
+    to bottom,
+    var(--text-dim) 0%,
+    color-mix(in srgb, var(--text-dim) 40%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+/* The dot goes grey and pulses, so "reconnecting" is legible at a glance without
+   reading the text beside it. The animation is disabled under reduced-motion in the
+   a11y layer below. */
+.host-panel.host-stale .host-head h2::before {
+  background: var(--text-dim);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-dim) 22%, transparent);
+  animation: sb-pulse 1.6s var(--sb-ease) infinite;
+}
+
+/* Dimmed while stale: the numbers are still there and still readable, but they stop
+   looking authoritative. */
+.host-panel.host-stale .host-metric-val {
+  color: var(--text-dim);
+}
+
+.host-panel.host-stale .host-head::after {
+  content: "reconnecting…";
+  font-size: var(--sb-text-sm);
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+@keyframes sb-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ── Entry animation ──────────────────────────────────────────────────────────
+   The panel is `hidden` until the first payload arrives, so it appears mid-session.
+   `@starting-style` gives it a starting point for that first paint, which is what
+   replaces the double-requestAnimationFrame dance — and it needs no JS at all here,
+   since the only change is `hidden` being removed.
+
+   `allow-discrete` is what makes `display`/`content-visibility` participate, so the
+   panel can animate from `hidden` rather than snapping in at full opacity. */
+.host-panel {
+  transition:
+    box-shadow var(--sb-dur) var(--sb-ease),
+    border-color var(--sb-dur) var(--sb-ease),
+    opacity 240ms var(--sb-ease),
+    translate 240ms var(--sb-spring),
+    display 240ms allow-discrete;
+}
+
+@starting-style {
+  .host-panel {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+
+} /* ── end @layer components (part 4) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Desktop sidebar column ───────────────────────────────────────────────────
+   The grid itself is unchanged from @layer base — `minmax(0, 1fr) 300px`, sidebar
+   on the right, DOM order preserved so tab order still reaches the process list
+   first. What changes here is the sidebar's own overflow behaviour.
+
+   Measured problem: at 300px wide and one column the panel is roughly 770px tall
+   (five figures at ~50px, plus three lists at their 172px cap). Sticky at
+   `top: 70px` on a 900px-tall window, the last ~100px sat below the fold with no
+   way to reach it — the page scroll moves the table, and the panel is pinned. So
+   the panel becomes its own scroll container, bounded in `dvh` rather than `vh`
+   because mobile browser chrome makes `vh` taller than the visible area.
+
+   The `clip auto` pair keeps the rounded corners clipping horizontally while
+   scrolling vertically, and it is what makes the sticky `.host-head` above stick
+   to the PANEL rather than to the page: the header stays visible while the figures
+   scroll under it, which is the behaviour that made the sticky header worth having. */
+@media (min-width: 1250px) {
+  .layout > .host-panel {
+    /* The sticky offset plus bottom breathing room. The offset already includes the
+       header's height (it has to clear it), so adding the header again would subtract it
+       twice — which is what the previous `- 8px - 56px` did, costing the panel 56px of
+       scrollable height it was entitled to. Written against `top` so the two stay tied. */
+    max-block-size: calc(100dvh - 64px - 16px);
+    overflow: clip auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text) 28%, transparent) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  /* The lists no longer need their own scroll once the panel scrolls: two nested
+     scroll areas in a 300px column means finding the right one before you can read
+     a mount point. They grow, and the panel handles the overflow. */
+  .layout > .host-panel .host-list {
+    max-block-size: none;
+    overflow-y: visible;
+  }
+}
+
+/* ── Banner layout ────────────────────────────────────────────────────────────
+   Below the sidebar breakpoint the panel is a full-width banner above the table,
+   which is where the container queries earn their place: the same component is
+   ~390px on a phone and ~1200px on a tablet, and it lays itself out from its own
+   width with no viewport breakpoint involved.
+
+   The `order: -1` in @layer base already puts it above the table visually while
+   leaving DOM order intact for tab order and screen readers. */
+@media (max-width: 1249px) {
+  .host-panel {
+    /* Skips rendering work for a banner scrolled out of view. The intrinsic size is
+       supplied so the scrollbar does not jump as it enters and leaves. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 220px;
+  }
+}
+
+} /* ── end @layer components (part 5) ───────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY
+   ══════════════════════════════════════════════════════════════════════════════
+   Last layer, so these rules win over anything a component declares. That is the
+   point of putting them in their own layer rather than at the bottom of the file:
+   a future component rule added below cannot accidentally out-specify a focus ring
+   or reinstate an animation someone asked the OS to suppress.
+
+   These close three gaps that were absent from the whole 2364-line sheet, not just
+   from the sidebar: there was no `:focus-visible` anywhere, no reduced-motion
+   handling, and no forced-colors handling — while `outline: none` appeared twice
+   with no replacement. Scoped to the sidebar plus those two inputs, so this stays a
+   sidebar change rather than a silent restyle of every control on the page. */
+@layer a11y {
+
+/* ── Focus ────────────────────────────────────────────────────────────────────
+   `:focus-visible`, not `:focus`. The distinction is the whole reason focus rings
+   get deleted: `:focus` fires on mouse click too, someone decides the ring is
+   noise, adds `outline: none`, and keyboard users lose the only indication of where
+   they are. `:focus-visible` shows the ring exactly when the browser judges it is
+   needed — keyboard, not pointer.
+
+   Two-tone ring: an offset gap in the panel colour, then the accent. It stays
+   visible against both the light and dark surface, which a single-colour outline
+   does not. */
+.host-panel :is(button, a, [tabindex], input, select):focus-visible {
+  outline: 2px solid var(--sb-focus);
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+/* The two inputs that had `outline: none` with no replacement, so keyboard focus was
+   signalled by a border-colour change alone — a 1px hue shift, which is not a focus
+   indicator. The border change is kept; a real ring is added on top. */
+.toolbar input[type="search"]:focus-visible,
+.toolbar select:focus-visible,
+.log-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Increased contrast ───────────────────────────────────────────────────────
+   `prefers-contrast: more` was unhandled: `forced-colors` had 19 rules and
+   `prefers-reduced-motion` 5, but a user asking their OS for more contrast on a
+   dashboard whose smallest text is 9px got nothing.
+
+   This is NOT `forced-colors`. There the platform replaces the palette and the job is
+   to survive it; here the author palette is kept and the job is to widen its range. So
+   the tokens are re-pointed rather than the rules rewritten — one block, and every
+   `light-dark()` consumer downstream picks it up.
+
+   Only tokens that carry contrast move. Dimensions, spacing and layout are untouched,
+   so the increased-contrast presentation cannot reflow the page. */
+@media (prefers-contrast: more) {
+  :root {
+    /* Body and dimmed text to the ends of the ramp. `--text-dim` is the one that
+       matters most: it is the secondary-label colour, so it sets the floor for the
+       smallest text on the page. */
+    --text: light-dark(#000000, #ffffff);
+    --text-dim: light-dark(#3d4759, #c8cdd6);
+
+    /* Borders become a real edge rather than a hint. At the default `--border` a
+       region boundary is a 1px near-background line, which is the first thing to
+       disappear for a low-vision user. */
+    --border: light-dark(#7b8494, #6b7280);
+    --border-strong: light-dark(#000000, #ffffff);
+
+    /* Severity text: darker/lighter than the AA-tuned defaults, keeping each hue so
+       the ok/warn/crit ramp still reads as a ramp. The defaults were measured at
+       4.58-4.69:1 (see the token comments); these clear 7:1 for AAA-level body text. */
+    --sb-ok-text: light-dark(oklch(0.42 0.19 149), oklch(0.85 0.19 149));
+    --sb-warn-text: light-dark(oklch(0.45 0.17 75), oklch(0.85 0.17 75));
+    --sb-crit-text: light-dark(oklch(0.46 0.21 25), oklch(0.85 0.21 25));
+
+    /* Danger text as body copy needs the same treatment as the severity ramp. */
+    --danger-text: light-dark(#7f1d1d, #ff9ba0);
+  }
+
+  /* The focus ring is the one indicator a low-vision keyboard user depends on, so it
+     gets thicker as well as higher-contrast. */
+  :is(button, a, [tabindex], input, select):focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* ── Touch targets ────────────────────────────────────────────────────────────
+   The panel toggle is a 22px-tall ghost button by design — a 44px filled control in
+   the header would dominate a region that is ambient context. So the VISUAL size
+   stays and the hit area grows via a pseudo-element, which costs no layout: padding
+   or min-height would have pushed the header taller on every device.
+   Only on coarse pointers, so a mouse does not get an invisible 44px target that
+   swallows clicks meant for the header beside it. */
+@media (any-pointer: coarse) {
+  .host-head #host-toggle {
+    position: relative;
+  }
+
+  .host-head #host-toggle::before {
+    content: "";
+    position: absolute;
+    /* Grows the target to at least 44px in both axes from a ~22x40 button. */
+    inset: -11px -8px;
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────────
+   Everything the sidebar animates is confirmation of something already visible in
+   text or colour: the chevron restates `aria-expanded`, the meter width restates
+   its number, the pulse restates "reconnecting…". So all of it can be removed with
+   nothing lost, which is the test for whether an animation is decorative.
+
+   Transitions are dropped rather than shortened to 0.01ms: the widely-copied
+   `animation-duration: 0.01ms !important` reset exists to make animations fire
+   their end events instantly. Nothing here depends on a transitionend, so `none` is
+   simply honest. */
+@media (prefers-reduced-motion: reduce) {
+  .host-panel,
+  .host-panel *,
+  .host-panel *::before,
+  .host-panel *::after {
+    transition: none;
+    animation: none;
+  }
+
+  /* The chevron still points the right way — it is a state indicator, not motion. */
+  .host-head #host-toggle::after {
+    transition: none;
+  }
+
+  /* The stale dot stops pulsing but stays grey, so the state is still legible. */
+  .host-panel.host-stale .host-head h2::before {
+    animation: none;
+  }
+
+  /* And the panel appears without sliding, rather than not appearing. */
+  @starting-style {
+    .host-panel {
+      opacity: 1;
+      translate: none;
+    }
+  }
+}
+
+/* ── Forced colours (Windows High Contrast) ───────────────────────────────────
+   In forced-colors mode the OS strips author backgrounds. Every state signal in this
+   panel is a background or a colour-mix — the status dot, the accent rail, the
+   severity meters, the failure tint — so all of them vanish and the panel becomes an
+   undifferentiated list. The rail in particular is a gradient on a pseudo-element:
+   with its background stripped it is a 3px invisible strip.
+
+   So state is re-expressed in system colours and in BORDERS, which forced-colors
+   preserves. `forced-color-adjust: none` is used only where a specific hue is
+   load-bearing — the severity meters, where losing the green/amber/red distinction
+   would lose the severity itself. */
+@media (forced-colors: active) {
+  .host-panel {
+    border: 1px solid CanvasText;
+  }
+
+  /* The gradient rail cannot survive, so it is replaced by a solid highlight strip. */
+  .host-panel::before {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .host-head {
+    border-block-end: 1px solid CanvasText;
+    /* The blur and the semi-transparent fill both go: over a forced background they
+       produce a muddy strip rather than a header. */
+    backdrop-filter: none;
+    background: Canvas;
+  }
+
+  /* A dot drawn with `background` alone would disappear, so it keeps a border. */
+  .host-head h2::before {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  /* The toggle is a ghost button, i.e. a background-less control — exactly the case
+     that becomes invisible. Given a real button appearance. */
+  .host-head #host-toggle {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  /* Severity is the one place the hue must be kept: an operator reads the colour, and
+     three identical grey bars carry no severity at all. */
+  .host-bar {
+    border: 1px solid CanvasText;
+  }
+
+  .host-bar span,
+  .host-bar span.warn,
+  .host-bar span.bad {
+    forced-color-adjust: none;
+  }
+
+  /* Row separators come back as real borders. */
+  .host-row:not(:last-child) {
+    border-block-end-color: CanvasText;
+  }
+
+  /* The failure tint is a background, so failure is re-expressed as a border. */
+  .host-panel:has(.host-failures:not([hidden]))::before {
+    background: LinkText;
+  }
+
+  .host-failures {
+    border-block-start: 2px solid LinkText;
+  }
+}
+
+} /* ── end @layer a11y ──────────────────────────────────────────────────────── */
+
+@layer components {
+
+/* ── Screen-reader-only text ──────────────────────────────────────────────────
+   The sheet had no such utility, so the theme switch's accessible labels needed one.
+   `clip-path` plus 1px box rather than `display: none` or `visibility: hidden`:
+   both of those remove the text from the accessibility tree, which is the opposite
+   of the intent. Not `text-indent: -9999px` either — that leaves the element in the
+   layout and can create a 9999px scroll region. */
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  
+  clip-path: inset(50%);
+  word-wrap: break-word;
+  border: 0;
+}
+
+/* ── Skip link ────────────────────────────────────────────────────────────────
+   The bypass block (WCAG 2.2 SC 2.4.1). Hidden by `.sr-only` until focused, then
+   it must become a real, readable control — so every property `.sr-only` used to
+   hide it is undone here rather than only some of them. `clip-path: none` is the
+   one that is easy to forget: without it the element is sized and positioned
+   correctly and still clipped to nothing.
+
+   Fixed rather than absolute, so it lands in the same place whatever the page has
+   scrolled to, and above the header's stacking context. */
+.skip-link:focus-visible {
+  position: fixed;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  padding: var(--space-sm) 14px;
+  overflow: visible;
+  clip-path: none;
+  z-index: 100;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font: 500 var(--text-sm)/1.2 var(--sans);
+  text-decoration: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Theme switch ─────────────────────────────────────────────────────────────
+   A segmented three-state control over radio inputs. The inputs are hidden from
+   sight but NOT from the accessibility tree or the keyboard: they stay focusable,
+   arrow keys still move between them, and the checked state is still announced.
+   `appearance: none` plus zero size would have removed the focus ring, so the ring
+   is drawn on the label instead via `:has(:focus-visible)`. */
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: var(--space-3xs);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--bg-panel);
+  /* A fieldset's default legend/padding/min-width behaviour is unhelpful here. */
+  min-inline-size: 0;
+}
+
+.theme-switch label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius);
+  font: 600 var(--text-xs)/1.4 var(--sans);
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+/* The input is visually removed but stays in the tree: it is the control. */
+.theme-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+  /* Full-size rather than 1px, so a pointer click anywhere on the label reaches the
+     input itself and no click handler is needed. */
+  inline-size: 100%;
+  block-size: 100%;
+  appearance: none;
+}
+
+.theme-switch label:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+/* `:has()` reading the input's own checked state, so the visual selection is driven
+   by the form state rather than by a class JS has to keep in sync. */
+.theme-switch label:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel));
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* The icons share the label's ink, so the checked glyph picks up the accent while the
+   idle pair stays muted — the selected theme is identifiable from the glyph alone,
+   without relying on the tinted plate behind it. */
+.theme-switch label svg,
+.host-icon-btn svg {
+  transition: color var(--transition);
+}
+
+.theme-switch label:has(input:checked) svg {
+  color: var(--accent);
+}
+
+/* The focus ring belongs on the label, since the input is invisible. */
+.theme-switch label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  /* The words are redundant once the group is this tight; the accessible labels in
+     `.sr-only` carry the meaning, and the title attributes remain. */
+  .theme-switch label {
+    padding: 3px 7px;
+    font-size: var(--sb-text-sm);
+  }
+}
+
+} /* ── end @layer components (part 6) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Donut gauges: CPU | RAM | SWAP ───────────────────────────────────────────
+   Three donut rings on one row, replacing linear bars. Each donut shows
+   utilisation as a circular arc — the number is centered inside the ring
+   for at-a-glance reading.
+
+   The fill is drawn by CSS `conic-gradient` off a `--gauge-scale` custom
+   property promoted by `applyStyles()`. No SVG, no canvas, no per-frame JS —
+   the element carries a number and CSS does the rest. Transition is via the
+   CSS `transition` on `background`, re-enabled after the instant initial set. */
+.host-gauges {
+  grid-column: 1 / -1;
+  display: grid;
+  /* Three equal columns, always. These three figures are a fixed set, so an auto-fit
+     grid would only introduce a reflow the content does not need. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--sb-line);
+}
+
+.host-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-xs) 9px;
+  background: var(--bg-panel);
+  text-align: center;
+  transition: background var(--sb-dur) var(--sb-ease);
+}
+
+.host-gauge:hover {
+  background: var(--sb-hover);
+}
+
+/* The donut ring. A circle with a conic-gradient that shows the fill proportion.
+   Severity is carried by colour *and* by the text label, never by colour alone (§D7). */
+.host-gauge-bar {
+  --gauge-fill: var(--sb-ok);
+  --gauge-track: color-mix(in srgb, var(--text) 10%, transparent);
+  --gauge-scale: 0;
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  /* Conic gradient: fill from 0 to scale, track for the remainder. */
+  background: conic-gradient(
+    var(--gauge-fill) calc(var(--gauge-scale) * 360deg),
+    var(--gauge-track) calc(var(--gauge-scale) * 360deg)
+  );
+  transition: background var(--sb-dur) var(--sb-ease);
+}
+
+/* Inner circle to create the donut hole. Positioned absolutely to overlay the center. */
+.host-gauge-bar::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+}
+
+/* Hide the inner fill span — the donut is drawn by conic-gradient on the bar itself. */
+.host-gauge-bar-fill {
+  display: none;
+}
+
+/* Severity, at one perceptual lightness so none of the three shouts louder
+   purely because of its hue. Set on the track so the fill and nothing else
+   changes colour. */
+.host-gauge.warn .host-gauge-bar {
+  --gauge-fill: var(--sb-warn);
+}
+
+.host-gauge.bad .host-gauge-bar {
+  --gauge-fill: var(--sb-crit);
+}
+
+/* The percentage number, centered inside the donut ring. */
+.host-gauge-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  /* Tabular figures so 9% → 10% does not shift the glyphs. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-lg);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  z-index: 1;
+}
+
+/* The percent sign, smaller and dimmer: the number is the reading, the unit is
+   context, and at 14px an equal-weight "%" competes with the digits. */
+.host-gauge-num i {
+  font-style: normal;
+  font-size: var(--sb-text-micro);
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-inline-start: 1px;
+}
+
+.host-gauge-label {
+  font-size: var(--sb-text-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+/* The byte figure under RAM and SWAP. Absent for CPU, which has no "of N". */
+.host-gauge-detail {
+  max-inline-size: 100%;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  line-height: 1.25;
+  color: var(--text-dim);
+  /* Wraps to a second line rather than truncating: "7.4 GB of 16 GB" in a ~95px
+     column has nowhere to go, and an ellipsis would cut the total — the half of the
+     figure that makes the percentage meaningful. */
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* Unavailable: the ring is empty and the absence marker shown, never a 0% fill.
+   A 0% ring reads as "measured, and idle", which is a different claim from
+   "not reported" — the same distinction `.host-metric-val.na` exists to preserve. */
+.host-gauge-na .host-gauge-bar {
+  --gauge-fill: transparent;
+}
+
+.host-gauge-na .host-gauge-num {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: var(--sb-text-md);
+}
+
+/* Narrow panels: reduce padding so CPU | RAM | SWAP stays one glanceable row.
+   Container query, so this responds to the PANEL — at 300px as a desktop sidebar
+   it takes this branch, as a full-width banner it does not. */
+@container sidebar (max-width: 300px) {
+  .host-gauge {
+    padding-inline: 3px;
+  }
+
+  .host-gauge-bar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .host-gauge-bar::after {
+    inset: 5px;
+  }
+
+  .host-gauge-detail {
+    font-size: var(--text-xs);
+  }
+}
+
+/* Wide panels (the banner layout) have room for more breathing room. */
+@container sidebar (min-width: 560px) {
+  .host-gauge-bar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .host-gauge-bar::after {
+    inset: 7px;
+  }
+}
+
+} /* ── end @layer components (part 7) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Stacked list rows ────────────────────────────────────────────────────────
+   Filesystems and interfaces use two lines instead of one.
+
+   Measured problem: side by side in a 300px sidebar, `/System/Volumes/Data` had to
+   share the row with "402 GB / 494 GB · 81.4%". Both truncated — the path lost the
+   segment that identifies it, and the capacity lost its percentage. Since the name
+   is what you look up and the figure is what you read, truncating either defeats the
+   row.
+
+   Two-column, two-row grid: name and headline figure on the first line, the detail
+   spanning the full width beneath. The name gets the whole first line minus the
+   percentage, and the byte figures get the entire second line. */
+.host-row-stacked {
+  /* ONE column. The `detail` column held the percentage, which now sits with the byte
+     totals on the `sub` line — leaving `auto` in place would reserve a right-hand
+     track for nothing and keep truncating the mount path it was taking width from. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "name"
+    "sub";
+  row-gap: var(--space-3xs);
+  padding-block: var(--space-xs);
+  align-items: baseline;
+}
+
+.host-row-stacked .host-row-name {
+  grid-area: name;
+  /* Releases the `max-width: 45%` that `.host-row-name` carries in @layer base for the
+     FLEX row layout, where the name shares a line with the figure. This rule never
+     declared max-width, so that 45% still applied here and clamped the mount path to
+     118px inside a 300px panel — measured: `/System/Volumes/Data` had scrollWidth 126
+     against clientWidth 118, so it was ellipsised with 144px of empty row beside it.
+     The stacked row is a single-column grid and the name owns the whole width. */
+  max-width: none;
+  /* One line now that the name owns the width. Two lines were needed when it shared
+     the row with the figure; here a path that still overflows is better ellipsised
+     than allowed to push the second line down. */
+  display: block;
+  
+  
+  word-wrap: break-word;
+  font-size: var(--sb-text-sm);
+  /* Truncates from the START, so a long path keeps the leaf that identifies it:
+     `…/Volumes/Data` rather than `/System/Volu…`. The direction switch is what makes
+     the ellipsis land on the left. */
+  direction: rtl;
+  text-align: left;
+}
+
+/* `direction: rtl` on the name would reorder punctuation at the string's edges, so
+   the text itself is switched back. The net effect is LTR text with a leading
+   ellipsis, which is the one thing plain CSS truncation cannot otherwise express. */
+.host-row-stacked .host-row-name {
+  unicode-bidi: plaintext;
+}
+
+.host-row-stacked .host-row-detail {
+  grid-area: detail;
+  font-size: var(--sb-text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The second line: byte totals, dimmer than the headline figure because it is the
+   supporting detail rather than the reading. */
+.host-row-sub {
+  grid-area: sub;
+  min-width: 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  line-height: 1.3;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+/* A per-row utilisation meter, so a filling disk is visible without reading the
+   number. Spans both columns under the detail line. */
+.host-row-meter {
+  grid-area: sub;
+  grid-column: 1 / -1;
+  align-self: end;
+  block-size: 3px;
+  margin-block-start: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  
+}
+
+/* The meter shares `sub` with the byte figures, so it is placed as its own row
+   instead — declared here rather than adding a fourth area to every row. */
+.host-row-stacked:has(.host-row-meter) {
+  grid-template-areas:
+    "name"
+    "sub"
+    "meter";
+}
+
+.host-row-stacked:has(.host-row-meter) .host-row-meter {
+  grid-area: meter;
+  margin-block-start: var(--space-2xs);
+}
+
+/* I/O operation rate line, added per row only when the payload carries counters
+   (task 4.x). Occupies its own row under the byte figures, below the meter. */
+.host-row-stacked:has(.host-iops) {
+  grid-template-areas:
+    "name"
+    "sub"
+    "iops";
+}
+
+.host-row-stacked .host-iops {
+  grid-area: iops;
+}
+
+.host-iops {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+/* The region-level absence marker. "Unavailable" is a different fact from "idle":
+   the daemon cannot measure it, so rendering a zero would invent a reading. Dimmed
+   and italic, the same grammar as every other unavailable figure in the panel. */
+.host-iops-na {
+  grid-column: 1 / -1;
+  font-style: italic;
+  padding-block-start: var(--space-2xs);
+}
+
+.host-row-meter span {
+  display: block;
+  block-size: 100%;
+  inline-size: 100%;
+  border-radius: inherit;
+  background: var(--sb-ok);
+  transform-origin: left;
+  transition: transform 320ms var(--sb-ease), background var(--sb-dur) var(--sb-ease);
+}
+
+.host-row-meter span.warn {
+  background: var(--sb-warn);
+}
+
+.host-row-meter span.bad {
+  background: var(--sb-crit);
+}
+
+/* ── Alignment with the table ─────────────────────────────────────────────────
+   The sidebar sat lower than the process table beside it. Cause: `.host-head` has
+   10px of padding and the table's first `th` has 8px, but the panel also carries a
+   1px border the table does not, so the first row of text started 3px lower — and
+   the old 8px `.host-head` padding plus the panel border put the "Host" label off
+   the table's baseline by a visible margin.
+
+   Fixed by matching the table's own 8px/10px cell padding and accounting for the
+   border, rather than by nudging a margin until it looked right: the two are now
+   derived from the same numbers, so a change to the table's cell padding does not
+   silently break the alignment again. */
+@media (min-width: 1250px) {
+  .layout > .host-panel {
+    /* The table's `th` has `padding: var(--space-sm) 10px` and no top border, so the panel's own 1px border is subtracted to put the two first baselines on the same line. */ margin-block-start: -1px;
+  }
+
+  .layout > .host-panel .host-head {
+    /* 8px to match the table header cell, not the 10px used in the banner layout
+       where there is no table to align to. */
+    padding-block: 7px;
+  }
+}
+
+} /* ── end @layer components (part 8) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Per-core CPU (btop's core box) ───────────────────────────────────────────
+   btop lays each core out as `C<n> <graph> <pct>%` and, under width pressure,
+   narrows the graph 10 cells → 5 → none, then splits into columns, and finally
+   stops drawing cores at all. The layout is copied; that last behaviour is not —
+   a panel that silently omits cores is indistinguishable from a host with fewer
+   cores, so this scrolls and always renders every core.
+
+   Instantaneous bars rather than per-core history: at sparkline resolution eight
+   tiny time series say little, whereas a column of current bars shows the SHAPE of
+   the distribution — one core pinned while seven idle is a single-threaded
+   bottleneck, all eight at 60% is honest saturation. That distinction is the reason
+   to look at per-core at all. */
+.host-cores {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 9px var(--space-lg) var(--space-md);
+  background: var(--bg-panel);
+  /* Never truncates the core list: it scrolls once past ~10 rows. */
+  max-block-size: 190px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 28%, transparent) transparent;
+  scrollbar-gutter: stable;
+}
+
+.host-cores[hidden] {
+  display: none;
+}
+
+.host-cores-head {
+  position: sticky;
+  inset-block-start: -9px;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: -9px -12px 7px;
+  padding: var(--space-sm) var(--space-lg) var(--space-xs);
+  background: var(--bg-panel);
+}
+
+.host-cores-head h3 {
+  margin: 0;
+  font-size: var(--sb-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--text-dim);
+}
+
+/* Core count and frequency, stated once. btop puts frequency in the sub-box's top
+   border; the same information, in the one place the panel has for it.
+   Per-core frequency is reported by the API but is near-identical across cores, so
+   repeating it on every row would spend a column on a constant. */
+.host-cores-meta {
+  margin-inline-start: auto;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+}
+
+/* One column by default. Two once the panel is wide enough for two readable rows —
+   btop's column-splitting behaviour, driven by the container rather than the
+   viewport, so it applies to the desktop sidebar and the banner independently.
+   `auto-fill` with a 150px floor keeps every column readable while the row count
+   grows/shrinks smoothly with the container: 6 columns at ~900px+, down to 2 at
+   the narrowest the sidebar allows. A lower bound of two is enforced because a
+   single-column layout wastes the horizontal space a bar chart is built for.
+
+   The container queries below take over from `auto-fill` for the two real
+   presentations, because auto-fill has no concept of an even row: 8 cores across
+   6 available columns renders 6+2, which is a ragged end. The sidebar is forced
+   to exactly two columns; the banner columns are decided by `--core-cols`,
+   which the client computes as a divisor of the core count (8 → 4 columns → two
+   even rows). `auto-fill` remains as the no-JS fallback. */
+.host-cores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 3px 14px;
+}
+
+/* The sidebar is a fixed 340px column whose content resolves one auto-fill
+   track; two columns is what an 8-core grid should be at that width. Fixed,
+   because relying on `auto-fill` math at this width produced one. */
+@container sidebar (max-width: 419px) {
+  .host-cores-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The banner has width to spare, so the grid follows the client's divisor
+   choice — 8 cores read as 2 rows of 4, 16 as 4 of 4 — capped at 6. */
+@container sidebar (min-width: 420px) {
+  .host-cores-grid {
+    grid-template-columns: repeat(var(--core-cols, 6), minmax(0, 1fr));
+  }
+}
+
+/* One core row: id, bar, percentage. Fixed track widths so the bars all start and
+   end on the same x, which is what makes the column comparable at a glance — a
+   ragged left edge defeats the entire purpose. */
+.host-core {
+  display: grid;
+  grid-template-columns: 2.1em minmax(0, 1fr) 2.6em;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.host-core-id {
+  font-family: var(--mono);
+  font-size: var(--sb-text-micro);
+  font-weight: 600;
+  color: var(--text-dim);
+  /* Tabular so C0 and C10 occupy the same width and the bars stay aligned. */
+  font-variant-numeric: tabular-nums;
+}
+
+.host-core-track {
+  block-size: 7px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  
+}
+
+.host-core-track span {
+  display: block;
+  block-size: 100%;
+  inline-size: 100%;
+  border-radius: inherit;
+  background: var(--sb-ok);
+  transform-origin: left;
+  transition: transform 320ms var(--sb-ease), background var(--sb-dur) var(--sb-ease);
+}
+
+/* Severity, from the same measured tokens as every other meter. */
+.host-core.warn .host-core-track span {
+  background: var(--sb-warn);
+}
+
+.host-core.bad .host-core-track span {
+  background: var(--sb-crit);
+}
+
+.host-core-pct {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  color: var(--text);
+  text-align: end;
+}
+
+/* The unit, dimmer and smaller: the number is the reading, "%" is context. Applies
+   Refactoring UI's "de-emphasize to emphasize" — the digits gain prominence because
+   their surroundings lose it, not because they got bigger. */
+.host-core-pct i {
+  font-style: normal;
+  font-size: var(--sb-text-micro);
+  color: var(--text-dim);
+  margin-inline-start: 1px;
+}
+
+/* A saturated core is worth seeing without reading its number. Weight, not colour
+   alone — the same reason severity carries a second cue everywhere in this panel. */
+.host-core.bad .host-core-pct {
+  font-weight: 700;
+}
+
+} /* ── end @layer components (part 9) ───────────────────────────────────────── */
+
+@layer components {
+
+/* ── Network interfaces with live sparklines ───────────────────────────────────
+   btop stacks download and upload as two mirrored history graphs around a shared
+   midline, colours them differently, and prints the y-axis maximum in the corner.
+   All three of those are reproduced; the mirroring is not, because at 24px of height
+   in a 300px column two mirrored halves give each direction ~11px — not enough to
+   read a shape from. Two overlaid traces at full height carry more signal, and the
+   colour plus the ↓/↑ glyphs already separate them.
+
+   Colour distinguishes DIRECTION, never magnitude. Magnitude is the printed rate and
+   the height of the line, which are the two encodings people actually read
+   accurately. */
+.host-net {
+  display: grid;
+  gap: 3px;
+  padding-block: 7px;
+  min-width: 0;
+}
+
+.host-net:not(:last-child) {
+  border-block-end: 1px solid var(--sb-line);
+}
+
+.host-net-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.host-net-name {
+  font-family: var(--mono);
+  font-size: var(--sb-text-sm);
+  color: var(--text);
+  
+  
+  word-wrap: break-word;
+}
+
+.host-net-rate {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--mono);
+  /* Tabular so a rate stepping 9 KB/s → 10 KB/s does not shift the row. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  font-weight: 600;
+  color: var(--text);
+  word-wrap: break-word;
+}
+
+/* The direction glyphs. These carry the down/up distinction independently of colour,
+   which is what keeps the row readable for a red-green colour-blind operator and in
+   forced-colors mode — colour is the reinforcement, not the signal. */
+.host-net-rate b {
+  font-weight: 700;
+  font-size: var(--sb-text-micro);
+}
+
+.host-net-rate b.rx {
+  color: var(--sb-net-rx-text);
+}
+
+.host-net-rate b.tx {
+  color: var(--sb-net-tx-text);
+}
+
+/* The graph. Both traces occupy the same box, so they are directly comparable
+   rather than each having its own implicit scale. */
+.host-net-graph {
+  position: relative;
+  block-size: 26px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  
+}
+
+.host-spark {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+}
+
+.host-spark polyline {
+  fill: none;
+  /* Non-scaling stroke, because `preserveAspectRatio: none` stretches the viewBox
+     horizontally — without this the line would thin out as the column widens. */
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.host-spark.rx polyline {
+  stroke: var(--sb-net-rx);
+}
+
+/* Upload dashed as well as differently coloured: two overlaid lines that differ only
+   in hue are one line to a colour-blind reader, and a dash pattern survives both
+   colour-vision deficiency and forced-colors mode. */
+.host-spark.tx polyline {
+  stroke: var(--sb-net-tx);
+  stroke-dasharray: 3 2;
+}
+
+/* The y-axis ceiling. btop prints this in the graph corner, and without it a
+   sparkline states no quantity — 60% of the way up an unknown axis is not a reading.
+   Positioned inside the graph so it cannot be separated from what it labels. */
+.host-net-scale {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline-start: 4px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-micro);
+  line-height: 1;
+  color: var(--text-dim);
+  /* Sits over the traces, so it needs its own backing to stay legible. */
+  background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
+  padding: 1px 3px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.host-net-total {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+} /* ── end @layer components (part 10) ──────────────────────────────────────── */
+
+@layer a11y {
+
+/* ── New components in forced-colors mode ─────────────────────────────────────
+   Cores, gauges and the network traces all encode state in `background` or `stroke`,
+   which forced-colors strips. Each gets a border or a system colour so it survives.
+   Only the severity fills keep `forced-color-adjust: none`, where losing the hue
+   would lose the severity itself. */
+@media (forced-colors: active) {
+  .host-core-track,
+  .host-net-graph,
+  .host-gauge-bar {
+    border: 1px solid CanvasText;
+  }
+
+  .host-core-track span,
+  .host-row-meter span,
+  .host-gauge-bar {
+    forced-color-adjust: none;
+  }
+
+  /* The traces would both become CanvasText and overlap indistinguishably; the dash
+     pattern on the upload line is what keeps them apart, so it is preserved and the
+     colours are allowed through. */
+  .host-spark polyline {
+    forced-color-adjust: none;
+  }
+
+  .host-net-scale {
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+  }
+
+  /* The theme switch is a set of background-tinted labels, i.e. exactly the case that
+     vanishes. The checked one gets a real selected appearance. */
+  .theme-switch label:has(input:checked) {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .theme-switch {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ── Reduced motion for the new components ────────────────────────────────────
+   The core bars, the gauge fills and the sparkline transitions are all confirmation
+   of a number that is printed beside them, so removing the motion loses nothing. */
+@media (prefers-reduced-motion: reduce) {
+  .host-core-track span,
+  .host-row-meter span,
+  .host-gauge-bar,
+  .host-spark polyline {
+    transition: none;
+  }
+}
+
+} /* ── end @layer a11y (part 2) ─────────────────────────────────────────────── */
+
+@layer components {
+
+/* ── Severity cue (non-colour) ────────────────────────────────────────────────
+   Task 5.3. Colour alone fails in three real situations, not hypothetical ones:
+   a red-green colour-blind operator cannot separate the warning and critical
+   hues (measured earlier in this sheet — the two differ by 1.36:1 in luminance,
+   which is below the 1.5:1 needed to be told apart), a monochrome screenshot
+   loses the distinction entirely, and Windows High Contrast strips author
+   backgrounds outright.
+
+   So the band is also carried by a glyph: `!` for warning, `!!` for critical. A
+   real text node rather than a `::before`, so a screen reader reaches it and it
+   survives forced-colors, with `role="img"` and an `aria-label` supplying the
+   word rather than leaving a reader to interpret punctuation. */
+.sev-cue {
+  display: inline-block;
+  margin-inline-start: var(--space-2xs);
+  font-style: normal;
+  font-weight: 700;
+  font-size: var(--sb-text-micro);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  /* Vertically nudged: at this size the glyph sits low against uppercase labels. */
+  translate: 0 -1px;
+}
+
+.sev-cue.warn {
+  color: var(--sb-warn-text);
+}
+
+.sev-cue.bad {
+  color: var(--sb-crit-text);
+}
+
+/* Applied to a figure that carries a band, so the number itself is emphasised and
+   not only its meter. Weight rather than size, because a size change would move
+   the layout every time a band changed. */
+.host-row-detail.warn {
+  color: var(--sb-warn-text);
+  font-weight: 700;
+}
+
+.host-row-detail.bad {
+  color: var(--sb-crit-text);
+  font-weight: 700;
+}
+
+@media (forced-colors: active) {
+  /* The glyph is the whole point here: with author colours stripped, it is the only
+     remaining carrier of the band. Its own colour is dropped so the system palette
+     applies rather than fighting it. */
+  .sev-cue {
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .host-row-detail.warn,
+  .host-row-detail.bad {
+    color: CanvasText;
+  }
+}
+
+} /* ── end @layer components (part 11) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Host top consumers ───────────────────────────────────────────────────────
+   Managed and unmanaged processes side by side, which is the whole point: an
+   operator seeing a managed process at 99% CPU needs to know whether it is the
+   cause or a victim of contention, and that answer only helps if the unmanaged
+   processes beside it are unmistakably NOT oxmgr's.
+
+   So the separation is structural rather than decorative — a top border, a
+   distinct heading, and a per-row tag. NO management controls are rendered here
+   at all, not even disabled ones: a greyed-out stop button on someone else's
+   database invites the click, and an absent one cannot. */
+.host-consumers {
+  border-block-start: 2px solid var(--sb-line-strong);
+}
+
+.host-consumers-head {
+  position: sticky;
+  inset-block-start: -10px;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: -10px -12px var(--space-xs);
+  padding: var(--space-sm) var(--space-lg) var(--space-xs);
+  background: var(--bg-panel);
+}
+
+.host-consumers-head h3 {
+  margin: 0;
+  font-size: var(--sb-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--text-dim);
+}
+
+/* CPU / memory switch. Real buttons with `aria-pressed`, so the dimension in view is
+   announced rather than being a visual-only state. */
+.host-consumers-toggle {
+  margin-inline-start: auto;
+  display: inline-flex;
+  gap: var(--space-3xs);
+}
+
+.host-consumers-toggle button {
+  padding: 1px var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  font: 600 var(--sb-text-micro)/1.4 var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+}
+
+.host-consumers-toggle button:hover {
+  background: var(--sb-hover);
+  color: var(--text);
+}
+
+.host-consumers-toggle button.active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+/* Host pressure with the listing. A consumer at 40% CPU means something different on
+   an idle host than on a saturated one, so the context travels with the rows. */
+.host-consumers-pressure {
+  margin-block-end: var(--space-xs);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+}
+
+/* One consumer. Two rows: name and figure on the first; the identifying detail
+   beneath, so a long process name does not have to share width with a pid. */
+.host-consumer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name value"
+    "sub  sub";
+  align-items: baseline;
+  column-gap: 7px;
+  row-gap: 1px;
+  padding-block: 5px;
+}
+
+.host-consumer:not(:last-child) {
+  border-block-end: 1px solid var(--sb-line);
+}
+
+.host-consumer-name {
+  grid-area: name;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--sb-text-sm);
+  color: var(--text-dim);
+  
+  
+  word-wrap: break-word;
+}
+
+/* A managed consumer's name is emphasised: it is the one an operator can act on. */
+.host-consumer.is-managed .host-consumer-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.host-consumer-val {
+  grid-area: value;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-text-sm);
+  font-weight: 600;
+  color: var(--text);
+  word-wrap: break-word;
+}
+
+.host-consumer-val.warn {
+  color: var(--sb-warn-text);
+}
+
+.host-consumer-val.bad {
+  color: var(--sb-crit-text);
+}
+
+.host-consumer-sub {
+  grid-area: sub;
+  min-width: 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  
+  
+  word-wrap: break-word;
+}
+
+/* ── Tree view rows ────────────────────────────────────────────────────────
+   The same row as a flat consumer, with an extra leading column for the expand
+   caret and an indent that grows with depth. The indent is one CSS variable on
+   the row, so the tree's shape survives any reflow without JS bookkeeping. */
+.host-consumer.is-tree {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "caret name value"
+    "caret sub  sub";
+  padding-inline-start: calc(var(--tree-depth, 0) * 14px);
+}
+
+/* The caret column reserves its width on every row — including leaves — so a
+   parent with children and a leaf beside it keep their name columns aligned. */
+.host-consumer-caret {
+  grid-area: caret;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  inline-size: 14px;
+  block-size: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 3px;
+  flex: none;
+}
+
+.host-consumer-caret:hover {
+  background: var(--sb-hover);
+  color: var(--text);
+}
+
+.host-consumer-caret.is-leaf {
+  cursor: default;
+}
+
+.host-consumer-caret.is-leaf:hover {
+  background: none;
+  color: var(--text-dim);
+}
+
+/* A triangle from a border trick, so the caret costs no glyph and no SVG — the
+   same approach as the region caret above. */
+.host-consumer-caret-glyph {
+  inline-size: 0;
+  block-size: 0;
+  border-block-start: 4px solid transparent;
+  border-block-end: 4px solid transparent;
+  border-inline-start: 5px solid currentColor;
+  transition: transform var(--sb-dur) var(--sb-ease);
+}
+
+.host-consumer-caret[aria-expanded="true"] .host-consumer-caret-glyph {
+  transform: rotate(90deg);
+}
+
+/* The tree total is the figure the view is sorted by, so it is the emphasized one. */
+.host-consumer-val.tree {
+  font-weight: 700;
+}
+
+/* A cut subtree: the ellipsis marks that the tree shown is not the whole tree. */
+.host-consumer-truncated {
+  color: var(--sb-warn-text);
+  font-weight: 700;
+}
+
+/* Unavailable, never an empty table. */
+.host-consumers-na {
+  padding-block: var(--space-xs);
+  font-size: var(--sb-text-micro);
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* Command lines enabled is stated on the surface, not only in the daemon log. */
+.host-consumers-note {
+  margin-block-start: var(--space-xs);
+  padding: 3px var(--space-xs);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--sb-warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sb-warn) 35%, transparent);
+  font-size: var(--sb-text-micro);
+  color: var(--text);
+}
+
+@media (forced-colors: active) {
+  .host-consumers {
+    border-block-start: 2px solid CanvasText;
+  }
+
+  .host-consumers-note {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+}
+
+} /* ── end @layer components (part 12) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Typical value beneath a current figure ───────────────────────────────────
+   Task 4b.4: the two must be visually distinguishable, so they are deliberately
+   NOT rendered alike. The current reading keeps full-strength colour and the
+   table's own size; the typical is a smaller muted line prefixed with `~`.
+
+   The `~` matters as much as the styling. Colour and size alone would leave the
+   two indistinguishable in a monochrome screenshot and under forced-colors, where
+   author colours are stripped — and a reader who cannot tell which number is
+   current is worse off than one shown only the current. `~` is the ordinary
+   convention for "approximately", so it needs no legend. */
+.cell-typical {
+  display: block;
+  margin-block-start: 1px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  /* A literal size, NOT `var(--sb-text-micro)`. That token is declared on `.host-panel`, so it does
+     not resolve here — and a custom property that fails to resolve makes the whole declaration
+     invalid, which silently left this line at the inherited 14px, identical to the current figure.
+     Found by measuring the computed style in a browser rather than by reading the rule: the page
+     looked plausible and the two figures were the same size.
+     10px rather than the sidebar's 9px because this sits inside a 14px table row, not an 11px
+     panel. */
+  font-size: var(--text-2xs);
+  line-height: 1.2;
+  color: var(--text-dim);
+  /* Never wraps: a two-line typical value would make the row height jump between
+     processes and break the scanning the table exists for. */
+  word-wrap: break-word;
+}
+
+/* The cell keeps its numeric alignment with the extra line. `vertical-align: top`
+   so a row with a typical value and one without still align on their first line —
+   otherwise the current figures would sit at different heights across the row. */
+.has-typical {
+  vertical-align: top;
+}
+
+@media (forced-colors: active) {
+  /* The `~` prefix is doing the work here, so the muted colour is dropped rather
+     than fought: the system palette applies and the marker still distinguishes. */
+  .cell-typical {
+    color: CanvasText;
+  }
+}
+
+/* Card layout (below 520px) stacks each cell with its label. The typical line stays
+   inline there rather than becoming a third row, because vertical space is the
+   scarce resource on a phone. */
+@media (max-width: 520px) {
+  .cell-typical {
+    display: inline;
+    margin-inline-start: var(--space-xs);
+  }
+}
+
+} /* ── end @layer components (part 13) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Findings indicator and view (process-intelligence 10.5) ───────────────────
+   A SECOND marker beside the advisory one, deliberately not merged with it. The two
+   answer different questions: an advisory is about configuration and is answerable
+   by editing a setting, a finding is about observed behaviour and is not. A merged
+   badge would produce a count an operator cannot act on, because half of it needs a
+   config change and half needs an investigation.
+
+   Distinguished by GLYPH first (`~` against the advisory's `!`) and colour second,
+   because two markers sharing a glyph are indistinguishable in a monochrome
+   screenshot — which is exactly when someone is reading a pasted terminal capture
+   rather than the live page. */
+.finding-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--space-2xs);
+  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  border: 1px dashed currentColor;
+  font-family: var(--sans);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  /* Dashed rather than solid, so the two markers differ in outline as well as glyph:
+     three independent cues (glyph, border style, colour) rather than one. */
+  cursor: help;
+}
+
+.finding-flag.info {
+  color: var(--text-dim);
+}
+
+.finding-flag.warning {
+  color: var(--sb-warn-text);
+}
+
+.finding-flag.critical {
+  color: var(--sb-crit-text);
+  /* Filled at critical only, matching the advisory marker's rule: one marker should
+     catch an eye scanning forty rows, and more than one defeats the purpose. */
+  background: var(--sb-crit-text);
+  color: var(--bg-panel);
+  border-style: solid;
+  border-color: var(--sb-crit-text);
+}
+
+@media (any-pointer: coarse) {
+  /* A tooltip is unreachable without a cursor, so the marker becomes a tap target of
+     the same 44px minimum every other control uses. */
+  .finding-flag {
+    min-width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    margin-left: var(--space-xs);
+  }
+}
+
+/* ── Findings in the detail panel ─────────────────────────────────────────────
+   Where the whole finding goes, evidence included: the row marker is a signal, this
+   is the explanation. */
+.finding-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  align-items: start;
+}
+
+.finding-row:not(:last-of-type) {
+  border-bottom: 1px solid var(--border);
+}
+
+/* A cleared finding is retained and dimmed rather than removed, because "this
+   resolved" is only observable if the clearing is visible for a while. */
+.finding-row.is-cleared {
+  opacity: 0.62;
+}
+
+.finding-head {
+  font-size: var(--text-sm);
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.finding-status {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 var(--space-2xs);
+}
+
+/* A recurrence is marked, because "this is happening again" is a different
+   operational fact from a first sighting and the episode number is the only place it
+   shows. */
+.finding-recurrence {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--sb-warn-text);
+}
+
+.finding-summary {
+  margin-top: 3px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+/* The numbers behind the claim, monospaced and tabular so observed and expected line
+   up when a reader compares them. This is what makes a finding checkable rather than
+   an assertion. */
+.finding-evidence {
+  margin-top: var(--space-3xs);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs);
+  color: var(--text-dim);
+}
+
+/* The empty case, which is where this view earns its keep: three different reasons
+   produce no findings and an operator responds differently to each. */
+.finding-note {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+@media (forced-colors: active) {
+  /* Both markers lose their fill, so the border style and the glyph are what remain to
+     tell them apart — which is why neither relies on colour alone. */
+  .finding-flag {
+    border: 1px dashed CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .finding-flag.critical {
+    border: 2px solid CanvasText;
+  }
+
+  .finding-row.is-cleared {
+    opacity: 1;
+  }
+}
+
+} /* ── end @layer components (part 14) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Sidebar host info: de-duplication and density (part 15) ──────────────────
+   Driven by measurement, not preference: the panel was stating the logical core
+   count twice (`8 cores` in the header, `8 logical` in the cores section) and
+   spending two full rows on load average and uptime, which are two short numbers. */
+
+/* The percentage, now inline with the byte totals rather than in its own column.
+   Inherits the mono/tabular figures of `.host-row-sub` and takes the severity colour,
+   so it still reads as the row's headline number without owning a track. */
+.host-row-sub b {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.host-row-sub b.warn {
+  color: var(--sb-warn-text);
+}
+
+.host-row-sub b.bad {
+  color: var(--sb-crit-text);
+}
+
+/* ── Load average + uptime, one row ───────────────────────────────────────────
+   Two cells side by side. `minmax(0, 1fr)` on both rather than `auto`, so the load
+   triple cannot squeeze the uptime out of the row: at 300px the wider value would
+   otherwise take what it needs and leave the other truncated. */
+.host-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2xs) var(--space-md);
+  align-items: start;
+}
+
+.host-pair-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* A hairline between the two, so they read as two figures rather than one wrapped
+   value. Logical property, so it follows writing direction. */
+.host-pair-cell + .host-pair-cell {
+  border-inline-start: 1px solid var(--sb-line);
+  padding-inline-start: var(--space-md);
+}
+
+/* The load triple is the longest value in the panel and must not wrap: at 300px it
+   is `1.23 · 4.56 · 7.89`, which fits only at the smaller step. */
+.host-pair .host-metric-val {
+  font-size: var(--sb-text-sm);
+  
+  
+  word-wrap: break-word;
+}
+
+/* Below the sidebar breakpoint the panel is a wide banner, where the hairline
+   separator reads as a table rule between unrelated columns. */
+.host-cpu-stats {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Row gap does the separating between wrapped rows; the border below handles columns. */
+  gap: var(--space-xs) var(--space-md);
+  margin-block: -2px var(--space-3xs);
+}
+
+@container sidebar (min-width: 560px) {
+  .host-cpu-stats {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(var(--cpu-facts, 6), minmax(0, 1fr));
+  }
+}
+
+/* ── Cores header meta ────────────────────────────────────────────────────────
+   Now carries `arm64 · 8 logical · 4.05 GHz`: the architecture moved here from the
+   panel header, where it sat beside a core count this line already states. Allowed to
+   wrap, because three facts at 300px do not fit on one line and truncating the
+   frequency would silently drop the newest of them. */
+.host-cores-meta {
+  text-wrap: pretty;
+}
+
+} /* ── end @layer components (part 15) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Top consumers: collapsed by default (part 16) ─────────────────────────────
+   The listing is the tallest region in the panel, and the question it answers —
+   "who is using this?" — is only asked once a gauge already looks wrong. So it
+   starts closed and is opened either from its own heading or by clicking the CPU
+   or RAM gauge, which is the moment the question arises. */
+
+/* The heading is now a disclosure button plus the pressure line. `margin-inline-start:
+   auto` on the pressure pushes it to the far edge, keeping the same single-row shape
+   the head had when the sort switch lived here. */
+.host-consumers-head {
+  flex-wrap: wrap;
+}
+
+/* Pushed to the trailing edge, where the sort switch used to sit. Stays OUTSIDE the
+   collapsible body on purpose: the listing has to be read against host load, so
+   collapsing the rows must not take the load reading with them. */
+.host-consumers-pressure {
+  margin-inline-start: auto;
+}
+
+/* The sort switch moved inside the body, so it no longer needs the auto margin that
+   pushed it away from the heading. */
+.host-consumers-body .host-consumers-toggle {
+  margin-inline-start: 0;
+  margin-block-end: var(--space-xs);
+}
+
+/* ── Gauges as controls ───────────────────────────────────────────────────────
+   CPU and RAM became real `<button>`s so they can open the listing. They must look
+   exactly like the SWAP gauge beside them, which is still a plain div — so the
+   generic button styling from @layer base is stripped back off here. */
+.host-gauge.is-actionable {
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  /* The affordance, kept subtle: three donuts in a row where two are clickable should
+     not turn into three boxes. The ring lifts on hover instead. */
+  border-radius: var(--radius);
+  transition: background var(--sb-dur) var(--sb-ease);
+}
+
+.host-gauge.is-actionable:hover {
+  background: var(--sb-hover);
+}
+
+.host-gauge.is-actionable:hover .host-gauge-label {
+  color: var(--text);
+}
+
+/* Open state on the gauge itself, so it is visible which gauge the listing below is
+   answering for — with two clickable gauges and one listing, an unmarked pair leaves
+   the rows ambiguous. */
+.host-gauge.is-actionable[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.host-gauge.is-actionable[aria-expanded="true"] .host-gauge-label {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+}
+
+@media (forced-colors: active) {
+  .host-gauge.is-actionable[aria-expanded="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}
+
+} /* ── end @layer components (part 16) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Interfaces: always open, idle ones behind a control (part 17) ────────────
+   The listing never collapses — the rows worth reading are the non-idle ones, so
+   they stay visible and the never-carried-a-byte subset hides behind the idle
+   control instead. Each interface row carries two sparklines and three lines of
+   text, so six of them is the tallest region in the panel after the consumer
+   listing. */
+.host-net-list .host-consumers-head {
+  margin-block-end: var(--space-xs);
+}
+
+/* The "show N idle" control. Labelled with the COUNT, because a control that might
+   reveal nothing is worse than no control — and the count is already known from the
+   payload the panel has in hand. */
+.host-net-more {
+  display: block;
+  grid-column: 1 / -1;
+  inline-size: 100%;
+  margin-block-start: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px dashed var(--sb-line-strong);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-dim);
+  font: 600 var(--text-xs)/1.4 var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+}
+
+.host-net-more:hover {
+  background: var(--sb-hover);
+  color: var(--text);
+}
+
+/* Dashed becomes solid when idle interfaces are showing, so the state is carried by
+   the border as well as by `aria-pressed` and the changed label. */
+.host-net-more[aria-pressed="true"] {
+  border-style: solid;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+@media (forced-colors: active) {
+  .host-net-more[aria-pressed="true"] {
+    border: 2px solid CanvasText;
+  }
+}
+
+} /* ── end @layer components (part 17) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Header icon controls (part 18) ───────────────────────────────────────────
+   The collapse control was a text button reading "Hide"/"Show". At 300px the header
+   holds a hostname, an OS name and this control, and the word cost ~46px that the
+   hostname needed. Now two icon buttons on the same line as the hostname.
+
+   Both keep a real accessible name in `aria-label` (updated in `#setOpen` and
+   `#applySide`, because an icon has no text to read) and the glyph is `aria-hidden`.
+   These rules are in @layer components, so they strip the generic `button` fill from
+   @layer base without an `!important` or an id-specificity fight. */
+.host-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 22px;
+  block-size: 22px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+}
+
+.host-icon-btn svg {
+  inline-size: 14px;
+  block-size: 14px;
+  /* The rotation below is the state cue, so it must animate from a known origin. */
+  transition: transform var(--sb-dur) var(--sb-ease);
+}
+
+.host-icon-btn:hover {
+  background: var(--sb-hover);
+  color: var(--text);
+}
+
+.host-icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The collapse icon drops its inner bars when the body is hidden, so the glyph depicts
+   the panel's state rather than pointing a direction. Driven off `aria-expanded`, so the
+   picture and the announced state cannot disagree — there is no second place holding
+   "is it open". Replaces a rotating chevron, which said "reveal what is below me": that
+   is the disclosure idiom used INSIDE the panel for interfaces and consumers, and reusing
+   it here made a panel-level control look like one of them. */
+#host-toggle[aria-expanded="false"] .host-toggle-fill {
+  opacity: 0;
+}
+
+.host-toggle-fill {
+  transition: opacity var(--sb-dur) var(--sb-ease);
+}
+
+/* The side glyph is mirrored when the panel sits on the left, so it always shows the side
+   the click MOVES it to. Unmirrored it depicted the current side, which read as a label
+   for where the panel already was rather than as an action. */
+.layout[data-host-side="left"] #host-side svg {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host-toggle-fill {
+    transition: none;
+  }
+}
+
+@media (any-pointer: coarse) {
+  /* 44px minimum, matching every other control on a touch target. */
+  .host-icon-btn {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+
+  .host-icon-btn svg {
+    inline-size: 18px;
+    block-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host-icon-btn svg {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .host-icon-btn {
+    color: CanvasText;
+  }
+
+  .host-icon-btn:hover {
+    border-color: CanvasText;
+  }
+}
+
+/* ── Side swap ────────────────────────────────────────────────────────────────
+   The panel can sit either side of the table. Grid placement only — the DOM order is
+   unchanged, so the table still comes first for a screen reader and for tab order
+   regardless of which side the panel is painted on. That is the whole reason this is
+   done with `grid-column` rather than by moving nodes. */
+@media (min-width: 1250px) {
+  .layout[data-host-side="right"] {
+    grid-template-columns: minmax(0, 1fr) var(--sb-width);
+  }
+
+  .layout[data-host-side="right"] > .toolbar {
+    /* The toolbar follows the table's column, which moves to 1 when the panel sits right. */
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .layout[data-host-side="right"] > .host-panel {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .layout[data-host-side="right"] > .table-wrap,
+  .layout[data-host-side="right"] > .empty {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .layout > .table-wrap {
+    overflow-x: auto;
+  }
+
+  th {
+    top: 0;
+  }
+}
+
+} /* ── end @layer components (part 18) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── CPU facts, under the gauges (part 19) ────────────────────────────────────
+   Its own region directly beneath the CPU/RAM/SWAP gauges. It was a single line above
+   the core grid, where it read as a property of the eight cores rather than of the
+   machine, and it is now several facts that a percentage cannot express: how many
+   processes exist, how many cores are actually loaded, the peak core, the averaging
+   window.
+
+   Wrapping chips rather than a `·`-joined string: at 340px six facts on one line either
+   truncate or wrap mid-figure, and each chip carries its own `title` explaining what the
+   number means — which a single joined line cannot do. */
+/* Built on `.host-pair`, the shared two-column grammar: dim label, bright value beneath,
+   hairline between cells. The chips it replaced read "6/8 cores busy" as a single run of
+   text, where the eye has to hunt the figure inside a sentence.
+   The `load avg | uptime` cell pair was once its own region immediately below; it is now
+   the trailing two cells of this same row, so the CPU facts and the load pair scan as one
+   column of figures.
+
+   TWO columns, not `auto-fit`. Four to six facts across one 340px row would leave each
+   value ~50px, and `peak core 91.9%` truncates there. Two per row keeps the same rhythm
+   as the pair region. */
+.host-cpu-stats[hidden] {
+  display: none;
+}
+
+/* Each cell explains itself on hover, because the labels are terse by design. */
+.host-cpu-stats .host-pair-cell {
+  cursor: help;
+}
+
+/* The hairline belongs between COLUMNS only. `.host-pair` puts it on every cell after the
+   first, which in a wrapping multi-row grid draws a rule at the start of each new row —
+   `:nth-child(odd)` is the first column, so it is cleared there. */
+.host-cpu-stats .host-pair-cell:nth-child(odd) {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+.host-cpu-stats .host-metric-val {
+  font-size: var(--sb-text-sm);
+}
+
+/* ── Storage + interfaces merged region ─────────────────────────────────
+   Two listing blocks — filesystems and interfaces — share one heading
+   and one scroll container. A 1px gap with the panel separator background
+   gives the same visual border that two adjacent regions had before the merge.
+
+   Stacked vertically by default (phone portrait / narrow banner), side-by-side
+   in the sidebar above 680px. When only one side has content, the
+   `:only-child` rule spans it full width so there is no empty half. */
+.host-storage-net .host-storage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: var(--sb-line);
+}
+.host-storage-net .host-storage-grid > * {
+  min-width: 0;
+  background: var(--bg-panel);
+}
+.host-storage-net .host-storage-grid > :only-child {
+  grid-column: 1 / -1;
+}
+@container sidebar (min-width: 680px) {
+  .host-storage-net .host-storage-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Each slot's own sub-heading (storages / networks) gets the same breathing room the
+   networks head already had in its standalone listing. */
+.host-storage-fs .host-consumers-head {
+  margin-block-end: var(--space-xs);
+}
+
+/* Two entries per row while the OUTER grid is stacked. Below 680px container the two
+   slots sit one above the other, so each of them has room to pack its rows two to a
+   line — a phone-width panel shows four storage/net entries where one column would
+   have shown two, the same column-split the cores grid performs at narrow widths.
+   At 680px+ the outer grid puts the slots side by side and the bodies return to one
+   column each, so entries never squeeze below a readable width. */
+@container sidebar (max-width: 679px) {
+  .host-storage-net .host-fs-body,
+  .host-storage-net .host-net-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 14px;
+  }
+
+  /* The per-row hairline becomes a ragged edge in two columns — the row that ends the
+     left column draws a rule nothing on the right mirrors. The gap carries the
+     separation instead. */
+  .host-storage-net .host-net {
+    border-block-end: 0;
+  }
+}
+
+} /* ── end @layer components (part 19) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Theme switch as icons (part 20) ──────────────────────────────────────────
+   The three options were the words Auto / Light / Dark, roughly 120px of header width
+   spent on labels for a control that is set once. The radio inputs, the `:has()`
+   selection logic and the `.sr-only` accessible names are all unchanged — only the
+   visible token is now a glyph. */
+.theme-switch label {
+  /* Square, so the three sit as an even row of icons rather than three different widths
+     driven by their old word lengths. */
+  padding: 0;
+  inline-size: 24px;
+  block-size: 22px;
+  justify-content: center;
+}
+
+.theme-switch svg {
+  inline-size: 14px;
+  block-size: 14px;
+  /* Not a click target of its own: the invisible full-size input above it is what takes
+     the pointer, and an SVG intercepting events would break that. */
+  pointer-events: none;
+}
+
+@media (any-pointer: coarse) {
+  /* 44px minimum per option on touch, matching every other control. */
+  .theme-switch label {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+
+  .theme-switch svg {
+    inline-size: 18px;
+    block-size: 18px;
+  }
+}
+
+@media (forced-colors: active) {
+  /* The selected option loses its tint, so the outline carries the state instead. */
+  .theme-switch label:has(input:checked) {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}
+
+} /* ── end @layer components (part 20) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Finding guidance (part 21) ───────────────────────────────────────────────
+   Collapsed by default via `<details>`, and native rather than a scripted toggle:
+   the element already carries its own open/closed state, keyboard handling and
+   accessible name, so a hand-rolled disclosure would be re-implementing all three
+   to look the same.
+
+   Collapsed because the evidence is the primary content. An operator who trusts the
+   numbers does not need the advice, and four bullet points expanded on every finding
+   would push the next finding off the panel. */
+.finding-guidance {
+  margin-block-start: 5px;
+  font-size: var(--sb-text-sm);
+}
+
+.finding-guidance summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--sb-text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  /* The default marker is a filled triangle that sits oddly against uppercase text;
+     `list-item` keeps the disclosure affordance with a lighter glyph. */
+  list-style-position: outside;
+}
+
+.finding-guidance summary:hover {
+  color: var(--text);
+}
+
+.finding-guidance summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.finding-guidance ul {
+  margin: var(--space-2xs) 0 0;
+  padding-inline-start: var(--space-xl);
+  display: grid;
+  gap: 3px;
+}
+
+.finding-guidance li {
+  color: var(--text-dim);
+  line-height: 1.45;
+  /* Each step is a sentence, so it wraps rather than truncating: advice cut off
+     mid-clause is worse than advice that takes two lines. */
+  text-wrap: pretty;
+}
+
+} /* ── end @layer components (part 21) ──────────────────────────────────────── */
+
+@layer components {
+
+/* ── Host cell & close: phone-only controls ──────────────────────────────────
+   These live in @layer components because they must beat the generic
+   `.host-icon-btn { display: inline-flex }` (also in components; the #id
+   specificity in the selectors below wins) and the generic `button` rules in
+   @layer base. #host-open mirrors #filter-toggle: hidden in the desktop toolbar
+   (the sidebar is always visible at 1250px+), restored in the phone strip. The
+   close control exists only inside the overlay — the desktop sidebar has the
+   body toggle instead. */
+#host-open { display: none; }
+.host-panel #host-close { display: none; }
+
+/* ── Host overlay, phone ─────────────────────────────────────────────────────
+   At ≤700px the panel stops being an inline banner and becomes a full-viewport
+   overlay, reached from the "Host" cell in the bottom bar (task 2.3/2.4). An
+   inline banner on a phone pushed the first process below the fold; an overlay
+   shows the figures over the list and returns control when dismissed.
+
+   `z-index: 90`: above the toolbar (20) and everything the page scrolls, below the
+   log/detail overlays (100), which may legitimately open over it. The body is
+   forced open by the JS — a collapsed banner body has no meaning inside an overlay
+   that exists to show the figures. */
+@media (max-width: 700px) {
+  .host-panel {
+    display: none;
+  }
+
+  .host-panel.host-overlay-open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    min-block-size: 100dvh;
+    max-block-size: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* The banner block sets `content-visibility: auto`; inside a full-viewport
+       overlay that would skip painting regions as they scroll — restore full paint. */
+    content-visibility: visible;
+  }
+
+  /* The body fills the remaining space in the overlay, so the panel always
+     reaches the bottom of the viewport rather than stopping at its content height. */
+  .host-panel.host-overlay-open .host-body {
+    flex: 1 0 auto;
+  }
+
+  .host-panel.host-overlay-open #host-close {
+    display: inline-flex;
+  }
+
+  #host-open {
+    display: flex;
+  }
+}
+
+} /* ── end @layer components (part 22) ──────────────────────────────────────── */

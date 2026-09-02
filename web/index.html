@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>OxMgr Dashboard</title>
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+	<link rel="stylesheet" href="/dashboard.css">
+	<script src="/theme.js"></script>
+</head>
+
+<body>
+	<a class="skip-link sr-only" href="#process-list">Skip to process list</a>
+	<div class="sr-only" id="status-live" role="status" aria-atomic="true"></div>
+	<div class="sr-only" id="alert-live" role="alert" aria-atomic="true"></div>
+	<header aria-label="Page header">
+		<h1><span>ox</span>mgr</h1>
+		<span class="env-label" id="env-label"></span>
+		<span class="addr" id="addr"></span>
+		<div class="spacer"></div>
+		<span class="hint" id="updated-hint"></span>
+		<fieldset class="theme-switch" id="theme-switch">
+			<legend class="sr-only">Colour theme</legend>
+			<label title="Follow the system theme">
+				<input type="radio" name="oxmgr-theme" value="auto" checked>
+				<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+					<circle cx="8" cy="8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" />
+					<path d="M8 3.4a4.6 4.6 0 0 0 0 9.2z" fill="currentColor" />
+				</svg>
+				<span class="sr-only">Follow the system theme</span>
+			</label>
+			<label title="Always use the light theme">
+				<input type="radio" name="oxmgr-theme" value="light">
+				<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+					<circle cx="8" cy="8" r="3.1" fill="none" stroke="currentColor" stroke-width="1.5" />
+					<path
+						d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.3 3.3l1.1 1.1M11.6 11.6l1.1 1.1M12.7 3.3l-1.1 1.1M4.4 11.6l-1.1 1.1"
+						fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+				</svg>
+				<span class="sr-only">Light theme</span>
+			</label>
+			<label title="Always use the dark theme">
+				<input type="radio" name="oxmgr-theme" value="dark">
+				<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+					<path d="M13.2 10.3A5.6 5.6 0 0 1 6.1 3.1a5.6 5.6 0 1 0 7.1 7.2z" fill="currentColor" />
+				</svg>
+				<span class="sr-only">Dark theme</span>
+			</label>
+		</fieldset>
+	</header>
+	<main aria-label="Process manager">
+		<div class="error-banner" id="error-banner"></div>
+		<div class="layout">
+			<div class="toolbar">
+				<div class="nav-bar">
+					<button type="button" id="filter-toggle" aria-expanded="false" aria-controls="filter-panel"
+						title="Show or hide the search, group and status filters">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+						</svg>
+						<span class="nav-label">Filters</span>
+						<span class="filter-badge" id="filter-badge" hidden></span>
+					</button>
+					<button id="refresh-btn" class="primary">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<polyline points="23 4 23 10 17 10" />
+							<polyline points="1 20 1 14 7 14" />
+							<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+						</svg>
+						<span class="nav-label">Refresh</span>
+					</button>
+					<button id="stop-all-btn">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<rect x="3" y="3" width="18" height="18" rx="3" />
+						</svg>
+						<span class="nav-label">Stop All</span>
+					</button>
+					<button id="restart-all-btn">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<polyline points="1 4 1 10 7 10" />
+							<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+						</svg>
+						<span class="nav-label">Restart All</span>
+					</button>
+					<button type="button" id="host-open" aria-expanded="false" aria-controls="host-panel"
+						title="Show the host figures">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="currentColor"
+								stroke-width="2" />
+							<line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2" />
+							<line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2" />
+						</svg>
+						<span class="nav-label">Host</span>
+					</button>
+				</div>
+				<span class="spinner" id="refresh-spinner"></span>
+				<div class="filter-panel" id="filter-panel" role="region" aria-labelledby="filter-toggle">
+					<div class="filter-panel-inner">
+						<input type="search" id="search-input" placeholder="Search name or id…" autocomplete="off">
+						<select id="group-select">
+							<option value="">All groups</option>
+						</select>
+						<div class="stats" id="stats"></div>
+					</div>
+				</div>
+			</div>
+			<div class="table-wrap" id="process-list" tabindex="-1">
+				<table id="table" role="table">
+					<thead role="rowgroup">
+						<tr role="row">
+							<th role="columnheader" class="col-status">Status</th>
+							<th role="columnheader" class="col-name"><button type="button" class="sort-btn"
+									data-sort-key="name">Name
+									<span class="sort-icon" aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="num col-id"><button type="button" class="sort-btn"
+									data-sort-key="id">ID
+									<span class="sort-icon" aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="num col-pid"><button type="button" class="sort-btn"
+									data-sort-key="pid">PID
+									<span class="sort-icon" aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="col-uptime"><button type="button" class="sort-btn"
+									data-sort-key="uptime">Uptime <span class="sort-icon"
+										aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="num col-cpu"><button type="button" class="sort-btn"
+									data-sort-key="cpu">CPU% <span class="sort-icon" aria-hidden="true"></span></button>
+							</th>
+							<th role="columnheader" class="num col-ram"><button type="button" class="sort-btn"
+									data-sort-key="ram">RAM
+									<span class="sort-icon" aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="num col-disk">Disk</th>
+							<th role="columnheader" class="num col-restarts"><button type="button" class="sort-btn"
+									data-sort-key="restarts">Restarts <span class="sort-icon"
+										aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="col-health"><button type="button" class="sort-btn"
+									data-sort-key="health">Health <span class="sort-icon"
+										aria-hidden="true"></span></button></th>
+							<th role="columnheader" class="col-actions">Actions</th>
+						</tr>
+					</thead>
+					<tbody id="tbody" role="rowgroup"></tbody>
+				</table>
+			</div>
+			<div class="empty" id="empty-state">No managed processes. Start one with
+				<code>oxmgr start &lt;command&gt;</code>.
+			</div>
+			<aside class="host-panel" id="host-panel" aria-labelledby="host-panel-title" hidden>
+				<div class="host-head">
+					<h2 id="host-panel-title"><span class="sr-only">Host</span></h2>
+					<span class="host-identity" id="host-identity"></span>
+					<div class="spacer"></div>
+					<button id="host-side" class="host-icon-btn" title="Move the panel to the other side"
+						aria-label="Move the panel to the other side">
+						<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+							<rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.5" fill="none" stroke="currentColor"
+								stroke-width="1.4" />
+							<rect x="9.4" y="4.6" width="3" height="6.8" rx="0.8" fill="currentColor" />
+						</svg>
+					</button>
+					<button id="host-toggle" class="host-icon-btn" aria-expanded="true" aria-controls="host-body"
+						title="Hide the host figures" aria-label="Hide the host figures">
+						<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+							<rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.6" fill="none" stroke="currentColor"
+								stroke-width="1.4" />
+							<path d="M2.2 6.1h11.6" fill="none" stroke="currentColor" stroke-width="1.4" />
+							<path class="host-toggle-fill" d="M4.6 8.6h6.8M4.6 10.9h4.2" fill="none"
+								stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+						</svg>
+					</button>
+					<button id="host-close" class="host-icon-btn" title="Close the host panel"
+						aria-label="Close the host panel">
+						<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+							<line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" stroke-width="1.6"
+								stroke-linecap="round" />
+							<line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" stroke-width="1.6"
+								stroke-linecap="round" />
+						</svg>
+					</button>
+				</div>
+				<div class="host-body" id="host-body"></div>
+			</aside>
+		</div>
+	</main>
+	<dialog class="log-overlay" id="log-overlay" aria-labelledby="log-title">
+		<div class="log-panel">
+			<div class="log-head">
+				<h2 id="log-title">Logs</h2>
+				<div class="spacer"></div>
+				<div class="seg" id="log-stream-seg">
+					<button data-stream="stdout" class="active">stdout</button>
+					<button data-stream="stderr">stderr</button>
+					<button data-stream="files">files</button>
+				</div>
+				<input type="search" id="log-search" class="log-search" placeholder="Filter lines…" autocomplete="off"
+					spellcheck="false">
+				<button id="log-older" class="small" hidden title="Load the preceding section of this file">↑ Load
+					earlier</button>
+				<button id="log-newer" class="small" hidden title="Load the following section of this file">↓ Load
+					newer</button>
+				<button id="log-pause" class="small" title="Pause watching (output is still retained)">Pause</button>
+				<button id="log-more" class="small" hidden aria-expanded="false" aria-controls="log-more-group"
+					title="More log controls">More</button>
+				<div class="log-more-group" id="log-more-group">
+					<button id="log-open-page" class="small" title="Open in a full page">Open page</button>
+					<button id="log-download" class="small" title="Download this log file">Download</button>
+					<button id="log-refresh" class="small">Refresh</button>
+				</div>
+				<button id="log-close" class="small">Close</button>
+			</div>
+			<div class="log-stats" id="log-stats" hidden></div>
+			<div class="log-body" id="log-body">
+				<button class="log-jump" id="log-jump" type="button">↓ Jump to latest</button>
+			</div>
+			<div class="log-foot">
+				<span class="spinner" id="log-spinner"></span>
+				<span id="log-meta"></span>
+			</div>
+		</div>
+	</dialog>
+	<dialog class="log-overlay" id="detail-overlay" aria-labelledby="detail-title">
+		<div class="detail-panel">
+			<div class="log-head">
+				<h2 id="detail-title">Process Detail</h2>
+				<div class="spacer"></div>
+				<div class="detail-actions" id="detail-actions"></div>
+				<button id="detail-close" class="small">Close</button>
+			</div>
+			<div class="detail-body" id="detail-body"></div>
+		</div>
+	</dialog>
+	<dialog class="confirm-dialog" id="confirm-overlay" aria-labelledby="confirm-title"
+		aria-describedby="confirm-message">
+		<div class="confirm-panel">
+			<div class="confirm-icon" aria-hidden="true">
+				<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"
+					stroke-linecap="round" stroke-linejoin="round">
+					<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+					<line x1="12" y1="9" x2="12" y2="13" />
+					<line x1="12" y1="17" x2="12.01" y2="17" />
+				</svg>
+			</div>
+			<h2 id="confirm-title">Are you sure?</h2>
+			<p id="confirm-message"></p>
+			<div class="confirm-actions">
+				<button id="confirm-cancel" class="small">Cancel</button>
+				<button id="confirm-ok" class="small danger">Confirm</button>
+			</div>
+		</div>
+	</dialog>
+	<script type="module" src="/dashboard.js"></script>
+</body>
+
+</html>
