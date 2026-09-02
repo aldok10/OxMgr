@@ -119,7 +119,7 @@ Or manually navigate to `http://127.0.0.1:46001` while the daemon is running.
 The dashboard shows process status, CPU/RAM usage, health, and log tails, and
 lets you stop, restart, or reload processes from the browser. Override the API
 bind address with the `OXMGR_API_ADDR` environment variable (see
-[src/config.rs](./src/config.rs)).
+[crates/oxmgr-daemon/src/config.rs](./crates/oxmgr-daemon/src/config.rs)).
 
 ![OxMgr web dashboard preview](./docs/screenshots/dashboard.png)
 ![Process Details](./docs/screenshots/process-detail.png)

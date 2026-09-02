@@ -173,7 +173,7 @@ Single managed process entry, Node.js handles worker fan-out internally. Command
 
 ```toml
 max_memory_mb = 512
-max_cpu_percent = 80.0
+max_cpu_percent = 
 cgroup_enforce = true               # Linux only: hard cgroup v2 limits at spawn
 ```
 
@@ -366,7 +366,7 @@ Every event's `process` object carries `command` (full command line) and `cwd`. 
 | `ignore_watch` | `[string]` | — | Regex patterns to ignore |
 | `watch_delay_secs` | int | — | Debounce after file change |
 | `max_memory_mb` | int | — | Soft memory limit |
-| `max_cpu_percent` | float | — | Soft CPU limit |
+| `max_cpu_percent` | integer (0-100) | — | Soft CPU limit |
 | `cgroup_enforce` | bool | `false` | Hard cgroup v2 limits (Linux) |
 | `deny_gpu` | bool | `false` | Disable GPU visibility via env |
 | `reuse_port` | bool | `false` | SO_REUSEPORT hint (macOS/Linux) |

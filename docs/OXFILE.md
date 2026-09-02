@@ -180,7 +180,7 @@ For full API endpoints and usage details, see [Web Dashboard in UI.md](./UI.md#w
 - `wait_ready`: bool
 - `ready_timeout_secs`: integer
 - `max_memory_mb`: integer
-- `max_cpu_percent`: float
+- `max_cpu_percent`: integer (percent 0-100)
 - `cgroup_enforce`: bool (Linux only; applies hard limits via cgroup v2)
 - `deny_gpu`: bool (best-effort GPU visibility disable via environment variables)
 - `reuse_port`: bool (best-effort hint for SO_REUSEPORT on macOS/Linux)
@@ -297,7 +297,7 @@ Behavior:
 
 ```toml
 max_memory_mb = 512
-max_cpu_percent = 80.0
+max_cpu_percent = 
 cgroup_enforce = true
 deny_gpu = true
 ```

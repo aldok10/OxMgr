@@ -222,7 +222,7 @@
           "minimum": 0
         },
         "max_cpu_percent": {
-          "type": "number",
+          "type": "integer",
           "minimum": 0
         },
         "cgroup_enforce": {
@@ -356,7 +356,7 @@
           "minimum": 0
         },
         "max_cpu_percent": {
-          "type": "number",
+          "type": "integer",
           "minimum": 0
         },
         "cgroup_enforce": {
@@ -504,7 +504,7 @@
           "minimum": 0
         },
         "max_cpu_percent": {
-          "type": "number",
+          "type": "integer",
           "minimum": 0
         },
         "cgroup_enforce": {

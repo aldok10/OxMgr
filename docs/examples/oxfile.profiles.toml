@@ -17,7 +17,7 @@ cwd = "./apps/api"
 instances = 1
 instance_var = "INSTANCE_ID"
 max_memory_mb = 384
-max_cpu_percent = 70.0
+max_cpu_percent = 70
 health_cmd = "curl -fsS http://127.0.0.1:3000/health"
 
 [apps.env]
@@ -27,7 +27,7 @@ PORT = "3000"
 [apps.profiles.staging]
 instances = 2
 max_memory_mb = 512
-max_cpu_percent = 75.0
+max_cpu_percent = 75
 
 [apps.profiles.staging.env]
 NODE_ENV = "staging"
@@ -39,7 +39,7 @@ instances = 4
 start_delay_secs = 3
 restart_delay_secs = 2
 max_memory_mb = 768
-max_cpu_percent = 85.0
+max_cpu_percent = 85
 
 [apps.profiles.prod.env]
 NODE_ENV = "production"

@@ -26,7 +26,7 @@ command = "node server.js"
 cwd = "./apps/api"
 depends_on = ["frontend"]
 max_memory_mb = 768
-max_cpu_percent = 80.0
+max_cpu_percent = 80
 health_cmd = "curl -fsS http://127.0.0.1:5000/health"
 
 [apps.env]

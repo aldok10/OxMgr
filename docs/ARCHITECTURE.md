@@ -15,25 +15,25 @@ The implementation favours simple local primitives such as a localhost TCP IPC c
 
 ## High-Level Flow
 
-1. The `oxmgr` binary starts in `src/main.rs`.
-2. CLI arguments are parsed in `src/cli.rs`.
-3. `src/config.rs` resolves runtime paths, daemon addresses, and log policy.
-4. Most commands are dispatched through `src/commands/mod.rs`.
-5. If the command needs the daemon, `src/daemon.rs` ensures that it is running and then communicates through `src/ipc.rs`.
-6. The daemon owns a single `ProcessManager` instance from `src/process_manager.rs`.
-7. `ProcessManager` persists state through `src/storage.rs`, writes logs through `src/logging.rs`, and manages child processes described by types in `src/process.rs`.
+1. The `oxmgr` binary starts in `crates/oxmgr/src/main.rs`.
+2. CLI arguments are parsed in `crates/oxmgr/src/cli.rs`.
+3. `crates/oxmgr-daemon/src/config.rs` resolves runtime paths, daemon addresses, and log policy.
+4. Most commands are dispatched through `crates/oxmgr/src/commands/mod.rs`.
+5. If the command needs the daemon, `crates/oxmgr-daemon/src/daemon.rs` ensures that it is running and then communicates through `crates/oxmgr-daemon/src/ipc.rs`.
+6. The daemon owns a single `ProcessManager` instance from `crates/oxmgr-manager/src/process_manager.rs`.
+7. `ProcessManager` persists state through `crates/oxmgr-manager/src/storage.rs`, writes logs through `crates/oxmgr-manager/src/logging.rs`, and manages child processes described by types in `crates/oxmgr-metrics/src/process.rs`.
 
 ## Core Modules
 
-### `src/cli.rs`
+### `crates/oxmgr/src/cli.rs`
 
 Defines the user-facing command-line interface. This module is intentionally thin: it maps parsed flags into helper types such as `HealthCheck` and `ResourceLimits`, then leaves execution to the command layer.
 
-### `src/commands/`
+### `crates/oxmgr/src/commands/`
 
 Contains one implementation module per top-level command. These modules translate CLI intent into daemon requests or local-only operations such as validation, conversion, and service installation.
 
-### `src/daemon.rs`
+### `crates/oxmgr-daemon/src/daemon.rs`
 
 Runs the foreground daemon event loop. The daemon listens on:
 
@@ -42,7 +42,7 @@ Runs the foreground daemon event loop. The daemon listens on:
 
 The daemon serialises state changes through a single manager command channel, which keeps lifecycle transitions predictable.
 
-### `src/process_manager.rs`
+### `crates/oxmgr-manager/src/process_manager.rs`
 
 This is the operational core of Oxmgr. It is responsible for:
 
@@ -56,7 +56,7 @@ This is the operational core of Oxmgr. It is responsible for:
 
 If you need to understand runtime behaviour, this is the first file to read.
 
-### `src/process.rs`
+### `crates/oxmgr-metrics/src/process.rs`
 
 Defines the shared domain model:
 
@@ -66,11 +66,11 @@ Defines the shared domain model:
 
 These types are shared by the CLI, daemon, storage layer, importers, and IPC protocol.
 
-### `src/storage.rs`
+### `crates/oxmgr-manager/src/storage.rs`
 
 Persists daemon state to a JSON file under the Oxmgr home directory. Writes are performed through a temporary file and replace step so state updates are resilient to partial writes.
 
-### `src/logging.rs`
+### `crates/oxmgr-manager/src/logging.rs`
 
 Calculates per-process stdout/stderr log paths, rotates oversized logs, cleans up expired rotations, and reads recent log tails for status views and CLI commands.
 
@@ -79,9 +79,9 @@ Calculates per-process stdout/stderr log paths, rotates oversized logs, cleans u
 Oxmgr accepts several ways to define managed services:
 
 - direct CLI input through `oxmgr start`
-- native `oxfile.toml` files parsed by `src/oxfile.rs`
-- PM2-compatible `ecosystem.config.json` files parsed by `src/ecosystem.rs`
-- portable `.oxpkg` bundles handled by `src/bundle.rs`
+- native `oxfile.toml` files parsed by `crates/oxmgr/src/oxfile.rs`
+- PM2-compatible `ecosystem.config.json` files parsed by `crates/oxmgr-manager/src/ecosystem.rs`
+- portable `.oxpkg` bundles handled by `crates/oxmgr/src/bundle.rs`
 
 Import layers normalise external formats into a common process-spec representation before the daemon starts or updates services. This keeps the runtime logic independent of the source format.
 
@@ -124,7 +124,7 @@ This keeps status responses useful without leaking secrets through normal toolin
 
 ## Platform-Specific Concerns
 
-- Linux can optionally enforce resource limits through cgroup v2 in `src/cgroup.rs`.
+- Linux can optionally enforce resource limits through cgroup v2 in `crates/oxmgr-metrics/src/cgroup.rs`.
 - macOS and Windows use the same high-level lifecycle code but skip Linux-specific cgroup enforcement.
 - Service installation is delegated to platform-specific command implementations rather than being mixed into the daemon core.
 
@@ -132,11 +132,19 @@ This keeps status responses useful without leaking secrets through normal toolin
 
 For common kinds of changes, start in these places:
 
-- new CLI flag or subcommand: `src/cli.rs` and `src/commands/`
-- new runtime lifecycle behaviour: `src/process_manager.rs`
-- new persisted process field: `src/process.rs` and `src/storage.rs`
-- new configuration format capability: `src/oxfile.rs` or `src/ecosystem.rs`
-- log handling changes: `src/logging.rs`
-- daemon protocol change: `src/ipc.rs` and the relevant command handler
+The workspace is split into layered crates (downward-only dependencies,
+enforced by `scripts/check-crate-layering.sh`): `oxmgr-core` (domain types),
+`oxmgr-store` (retention/hashing), `oxmgr-metrics` (collection),
+`oxmgr-analytics` (detectors/baselines), `oxmgr-manager` (lifecycle),
+`oxmgr-daemon` (HTTP/SSE + IPC + config), and the thin `oxmgr` binary.
+
+For common kinds of changes, start in these places:
+
+- new CLI flag or subcommand: `crates/oxmgr/src/cli.rs` and `crates/oxmgr/src/commands/`
+- new runtime lifecycle behaviour: `crates/oxmgr-manager/src/process_manager.rs`
+- new persisted process field: `crates/oxmgr-metrics/src/process.rs` and `crates/oxmgr-manager/src/storage.rs`
+- new configuration format capability: `crates/oxmgr/src/oxfile.rs` or `crates/oxmgr-manager/src/ecosystem.rs`
+- log handling changes: `crates/oxmgr-manager/src/logging.rs`
+- daemon protocol change: `crates/oxmgr-daemon/src/ipc.rs` and the relevant command handler
 
 Keep source-level rustdoc and user-facing docs in sync when changing behaviour, flags, or configuration semantics.

@@ -98,10 +98,114 @@ Or navigate directly to `http://127.0.0.1:46001` while the daemon is running.
 ## Features
 
 - Real-time process list with status, CPU, RAM, uptime, and health
+- Host panel with length-based bar gauges for CPU, RAM, and SWAP, plus CPU stats,
+  per-core usage, storage and network, and top-consumer listings
 - Live log streaming (stdout/stderr/error) via SSE
 - Process control: stop, restart, reload from the browser
 - Prometheus metrics at `/metrics`
-- Responsive design for desktop and mobile
+- Responsive design for desktop sidebar, tablet banner, and mobile overlay
+
+### Asset Serving Modes and Caching
+
+The dashboard's JavaScript modules, stylesheet, icon and any other file placed
+under the web directory are served as individual files at their own URLs — not
+as one concatenated bundle. The browser loads the entry point and follows the
+ESM import graph itself.
+
+Two serving modes, same URL space:
+
+*   **On-disk mode** — set `OXMGR_WEB_DIR` to a directory; every file under it
+    is served at the path that locates it (subdirectories included). Content is
+    read from disk on each request, so editing a file takes effect on reload
+    with no daemon restart. Paths are resolved and contained within the
+    directory before any read; traversal, encoded or symlinked escapes are
+    refused. Unknown file extensions serve with a generic binary content type.
+*   **Embedded mode** — leave `OXMGR_WEB_DIR` unset; the binary serves its own
+    compiled-in copies at the same paths, so production images need no asset
+    directory.
+
+Caching contract: every asset response carries an ETag validator. A repeat
+request presenting a matching validator is answered `304 Not Modified` without
+a body. For embedded assets the validator derives from build-time content, so
+a rebuild invalidates caches; for on-disk assets it reflects the file's
+current state, so editing a file invalidates its previous copy immediately.
+Responses carry `Vary: Accept-Encoding`; compression is negotiated per asset,
+and SSE endpoints are never compressed.
+
+Measured cost of per-module delivery versus the old single bundle (same gzip
+level): +15.0% transferred bytes (79374 → 91290), and ~5 sequential HTTP/1.1
+rounds instead of 1 on a cold load. Both figures are recorded as spec bounds
+in `dashboard-module-boundaries` — a regression past them is a defect, and
+enabling HTTP/2 would recover most of the round-trip cost.
+
+### Design Tokens Scale
+
+This dashboard uses a `rem`-based token system for typography and spacing, ensuring consistency and scalability across font sizes and viewports.
+*   **Typography Scale:** 10 steps (e.g., `--text-3xs` 0.5625rem up to `--text-display` 3rem) replaces the previous literal `px` declarations.
+*   **Spacing Scale:** 9 steps (e.g., `--space-3xs` 0.125rem up to `--space-3xl` 2rem) replaces the many literal `px` values used for padding and margin.
+*   A few `px` values are intentionally retained for border widths, outline offsets, and 1px rules because those are pixel-sensitive.
+
+### Accessibility and Announcements
+
+This dashboard uses ARIA live regions for critical status announcements, ensuring assistive technology users receive up-to-date information about UI changes.
+*   **Live Regions:** Two regions (`role="status"` and `role="alert"`) are used for announcements. They are visually hidden (`.sr-only`) but remain available to screen readers.
+*   **Status Announcements:** All action outcomes (start, stop, restart, delete) and daemon connectivity changes are announced explicitly.
+*   **Stream Silence:** Per-tick data (e.g., CPU/RAM updates) is not announced, avoiding excessive screen reader chatter and keeping the experience smooth.
+*   **Semantic Dialogs:** All critical overlays (confirm, log, detail) use the native `<dialog>` element, ensuring correct modal behavior, focus containment, and dismissal via the Escape key.
+
+### UI Contribution Guide
+
+When developing the dashboard UI, follow these two primary rules:
+1.  **Never announce per-tick figures** (e.g., CPU/RAM updates). Rapidly changing data makes the dashboard unreadable for screen readers.
+2.  **Never declare text sizes in `px`**. Use the available token system to ensure scalability and accessibility.
+
+### Process Descendants and Cluster Shape
+
+A managed process can reveal the child processes attributed to it, and a cluster
+process additionally reports its requested-versus-observed worker shape.
+
+**Attribution boundary.** Descendants are resolved by walking parent pids
+transitively from each managed process's pid, so children AND grandchildren land
+under the process that ultimately spawned them. A child's own children count
+toward its ancestor's subtree; a child's disk I/O does not — per-process I/O
+remains bounded by `process-io-metrics` and is never rolled up.
+
+**Two clocks, on purpose.** The parent row's own CPU/RAM refresh every couple of
+seconds; child figures come from the host-wide sampler, which completes one
+observation every 30 seconds. Every descendants panel prints its sample time.
+The duty-cycle arithmetic behind this: sampling every process tree every 2 s
+would multiply the sampler's cost by 15 for data that changes least urgently;
+the 30 s cadence keeps the daemon lean while the freshness marker keeps the
+figure honest. Do not "fix" the two clocks into one — if child staleness ever
+proves unacceptable, the honest change is a shorter sampler interval with its
+duty cost stated, not a hidden second scan.
+
+Because of that cadence, the host-consumers panel and a per-process expansion
+can show different sets at the same moment: they are views of samples taken
+seconds apart, not an inconsistency.
+
+**Three states, deliberately distinct.** Expanding a row shows either the
+children (possibly none — observed-and-none is stated in words), or
+`unavailable` with its reason: sampling disabled (`OXMGR_HOST_CONSUMERS`), or
+the first sample not yet completed since daemon start. Unavailable is never
+rendered as an empty list or as zero.
+
+**Cluster shape.** A cluster-mode process carries a `cluster` chip and reports:
+
+- **requested** — the configured worker count. When no count was configured,
+  the Node bootstrap derived one from CPU availability at start; the daemon
+  cannot know that number, so it reports *derived* rather than borrowing the
+  observed count (which would make every shortfall invisible).
+- **observed** — workers the last sample attributed to this bootstrap's pid,
+  unavailable under the same conditions as descendants.
+
+The two figures legitimately differ during startup and after a worker death;
+they are shown side by side so a gap is visible, and nothing attaches a verdict
+to it. Workers carry pid and name only — per-worker identity such as
+`NODE_APP_INSTANCE` is not read (process environments are more sensitive than
+the command lines the dashboard already withholds). Expanded instances
+(`instances: N`) stay separate managed processes; an instance that is itself a
+cluster reports its own worker count. There is no per-worker start/stop/restart.
 
 ## Authentication
 
