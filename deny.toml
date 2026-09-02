@@ -1,0 +1,21 @@
+
+[advisories]
+
+[licenses]
+allow = [
+    # Section 4.2 of rust-safety-baseline: supply-chain gate allow-list, each
+    # with its stated reason. These are the licenses of every direct and
+    # transitive dependency as of the 2026-08 audit; a new license is a
+    # review event, not an automatic yes.
+    "MIT", # broadest ecosystem license; the majority of crates here (serde, tokio, axum tree)
+    "Apache-2.0", # tokio, axum, tower, hyper families
+    "Unicode-3.0", # icu_collections/locale_core/normalizer/properties/provider + potential_utf (idna → url). OSI-approved.
+    "BSD-3-Clause", # matchit 0.8.4 (axum's router) is MIT AND BSD-3-Clause; OSI + FSF approved
+    "MPL-2.0", # option-ext 0.2.0 (dirs-sys → dirs); OSI + FSF approved, weak copyleft
+]
+
+[bans]
+multiple-versions = "warn"
+
+[sources]
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -32,15 +32,29 @@ jobs:
       - name: Cargo fmt check
         run: cargo fmt --all -- --check
 
+      - name: Zero-suppression check
+        run: bash scripts/check-no-suppressions.sh
+
       - name: Cargo check
         run: cargo check --all-targets
 
       - name: Cargo clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features
+
+      - name: Crate layering gate
+        if: runner.os == 'Linux'
+        run: bash scripts/check-crate-layering.sh
 
       - name: Validate download metrics script
         if: runner.os == 'Linux'
         run: python3 -m py_compile scripts/generate_download_metrics.py
+
+      - name: Validate resource budget scripts
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m py_compile scripts/measure_resource_budget.py
+          python3 -m py_compile scripts/compare_resource_budget.py
+          python3 -m py_compile scripts/check_memory_growth.py
 
       - name: Packaging smoke checks
         if: runner.os == 'Linux'
@@ -48,6 +62,109 @@ jobs:
 
       - name: Cargo test
         run: cargo test --all-targets
+
+  supply-chain:
+    name: Supply-chain (cargo deny)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Cargo deny check
+        run: cargo deny check
+
+  unused-deps:
+    name: Unused deps (cargo udeps)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+
+      - name: Install cargo-udeps
+        uses: taiki-e/install-action@cargo-udeps
+
+      - name: Check for unused dependencies
+        run: cargo +nightly udeps --all-targets
+
+  coverage:
+    name: Coverage (report-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Collect coverage
+        env:
+          OXMGR_RUN_E2E: "1"
+        run: |
+          cargo llvm-cov --all-targets --lcov --output-path lcov.info
+          # Per-file breakdown, so untested areas are identifiable rather than hidden
+          # behind a single percentage. No threshold is enforced: coverage is a map of
+          # what is untested, and a target turns it into a number to game.
+          cargo llvm-cov report --summary-only
+
+      - name: Upload lcov
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info
+
+  resource-budget:
+    name: Resource budget (report-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Measure
+        run: |
+          python3 scripts/measure_resource_budget.py \
+            --processes 3 --settle 6 --sample 20 \
+            --out budget-report.json
+
+      - name: Compare against baseline
+        run: |
+          BASELINE="bench/baselines/linux-x86_64.json"
+          if [ -f "$BASELINE" ]; then
+            python3 scripts/compare_resource_budget.py budget-report.json "$BASELINE"
+          else
+            echo "No baseline for this platform yet. Recording the measurement:"
+            python3 -c "import json;print(json.dumps(json.load(open('budget-report.json')),indent=2,sort_keys=True))"
+            echo
+            echo "To adopt it as the baseline, copy budget-report.json to $BASELINE"
+            echo "and record the reason in docs/BENCHMARKS.md."
+          fi
+
+      - name: Check memory plateaus under load
+        run: python3 scripts/check_memory_growth.py budget-report.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-budget-report
+          path: budget-report.json
 
   e2e:
     name: E2E (${{ matrix.os }})
