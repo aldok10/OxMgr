@@ -56,7 +56,6 @@ nix = { version = "0.31", features = ["signal", "process", "user"] }
 [dev-dependencies]
 serial_test = { version = "3.5" }
 tower = { version = "0.5", features = ["util"] }
-futures = { version = "0.3", default-features = false, features = ["executor"] }
 
 [lints]
 workspace = true

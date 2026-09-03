@@ -28,8 +28,5 @@ sysinfo = { workspace = true }
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["signal", "process", "user"] }
 
-[dev-dependencies]
-serial_test = { version = "3.5" }
-
 [lints]
 workspace = true

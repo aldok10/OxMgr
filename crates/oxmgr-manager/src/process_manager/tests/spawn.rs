@@ -4,7 +4,9 @@ use super::*;
 async fn resolve_spawn_program_passthrough_when_cluster_disabled() {
     let process = fixture_process();
     let tmp = std::env::temp_dir();
-    let spawn = resolve_spawn_program(&process, &tmp).await.expect("expected passthrough spawn program");
+    let spawn = resolve_spawn_program(&process, &tmp)
+        .await
+        .expect("expected passthrough spawn program");
     assert_eq!(spawn.program, "node");
     assert_eq!(spawn.args, vec!["server.js".to_string()]);
     assert!(spawn.extra_env.is_empty());
@@ -18,7 +20,8 @@ async fn resolve_spawn_program_rejects_non_node_cluster_mode() {
     process.cluster_instances = Some(4);
 
     let tmp = std::env::temp_dir();
-    let err = resolve_spawn_program(&process, &tmp).await
+    let err = resolve_spawn_program(&process, &tmp)
+        .await
         .expect_err("expected non-node command to fail for cluster mode");
     assert!(
         err.to_string().contains("requires a Node.js command"),
@@ -33,7 +36,8 @@ async fn resolve_spawn_program_builds_bootstrap_for_cluster_mode() {
     process.cluster_mode = true;
     process.cluster_instances = Some(3);
 
-    let spawn = resolve_spawn_program(&process, &runtime).await
+    let spawn = resolve_spawn_program(&process, &runtime)
+        .await
         .expect("expected cluster spawn command to be generated");
     assert_eq!(spawn.program, "node");
     assert_eq!(spawn.args[1], "--");

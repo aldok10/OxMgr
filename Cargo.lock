@@ -1098,7 +1098,6 @@ dependencies = [
  "crossterm",
  "dirs",
  "flate2",
- "futures",
  "futures-util",
  "json5",
  "nix",
@@ -1128,13 +1127,9 @@ dependencies = [
 name = "oxmgr-analytics"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "oxmgr-core",
- "oxmgr-metrics",
- "oxmgr-store",
  "serde",
  "serde_json",
- "tokio",
  "tracing",
 ]
 
@@ -1174,7 +1169,6 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
- "url",
 ]
 
 [[package]]
@@ -1193,7 +1187,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serial_test",
  "shell-words",
  "sysinfo",
  "tokio",

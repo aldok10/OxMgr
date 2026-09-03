@@ -9,14 +9,10 @@ description = "OxMgr analytics: deterministic detectors, baselines, history, pat
 
 [dependencies]
 oxmgr-core = { workspace = true }
-oxmgr-store = { workspace = true }
-oxmgr-metrics = { workspace = true }
 
-anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true }
 
 [lints]
 workspace = true

@@ -83,12 +83,14 @@ async fn ensure_node_cluster_bootstrap(base_dir: &Path) -> Result<PathBuf> {
     })?;
 
     let bootstrap_path = runtime_dir.join("node_cluster_bootstrap.cjs");
-    fs::write(&bootstrap_path, NODE_CLUSTER_BOOTSTRAP).await.with_context(|| {
-        format!(
-            "failed to write node cluster bootstrap at {}",
-            bootstrap_path.display()
-        )
-    })?;
+    fs::write(&bootstrap_path, NODE_CLUSTER_BOOTSTRAP)
+        .await
+        .with_context(|| {
+            format!(
+                "failed to write node cluster bootstrap at {}",
+                bootstrap_path.display()
+            )
+        })?;
     Ok(bootstrap_path)
 }
 
