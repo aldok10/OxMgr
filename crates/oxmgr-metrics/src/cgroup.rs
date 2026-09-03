@@ -50,36 +50,34 @@ pub fn apply_limits(
     let group_path = managed_root.join(group_name);
     ensure_dir(&group_path, "creating process cgroup")?;
 
-    if let Some(max_cpu_percent) = limits.max_cpu_percent {
-        if max_cpu_percent > 0 {
-            let period_us: u64 = 100_000;
-            let quota_us = (max_cpu_percent * period_us + 50) / 100;
-            let quota_us = quota_us.max(1);
-            fs::write(
-                group_path.join("cpu.max"),
-                format!("{quota_us} {period_us}\n"),
+    if let Some(max_cpu_percent) = limits.max_cpu_percent
+        && max_cpu_percent > 0
+    {
+        let period_us: u64 = 100_000;
+        let quota_us = (max_cpu_percent * period_us + 50) / 100;
+        let quota_us = quota_us.max(1);
+        fs::write(
+            group_path.join("cpu.max"),
+            format!("{quota_us} {period_us}\n"),
+        )
+        .with_context(|| {
+            format!(
+                "failed to write cpu.max for cgroup {}",
+                group_path.display()
             )
-            .with_context(|| {
-                format!(
-                    "failed to write cpu.max for cgroup {}",
-                    group_path.display()
-                )
-            })?;
-        }
+        })?;
     }
 
-    if let Some(max_memory_mb) = limits.max_memory_mb {
-        if max_memory_mb > 0 {
-            let max_bytes = max_memory_mb.saturating_mul(1024 * 1024);
-            fs::write(group_path.join("memory.max"), format!("{max_bytes}\n")).with_context(
-                || {
-                    format!(
-                        "failed to write memory.max for cgroup {}",
-                        group_path.display()
-                    )
-                },
-            )?;
-        }
+    if let Some(max_memory_mb) = limits.max_memory_mb
+        && max_memory_mb > 0
+    {
+        let max_bytes = max_memory_mb.saturating_mul(1024 * 1024);
+        fs::write(group_path.join("memory.max"), format!("{max_bytes}\n")).with_context(|| {
+            format!(
+                "failed to write memory.max for cgroup {}",
+                group_path.display()
+            )
+        })?;
     }
 
     fs::write(group_path.join("cgroup.procs"), format!("{pid}\n")).with_context(|| {

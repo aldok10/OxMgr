@@ -235,15 +235,15 @@ const V1_UNLIMITED: u64 = 9_223_372_036_854_771_712;
 #[cfg(target_os = "linux")]
 pub fn current_usage_bytes() -> Option<u64> {
     // v2 first, matching `read_memory_limit`.
-    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory.current") {
-        if let Ok(bytes) = raw.parse::<u64>() {
-            return Some(bytes);
-        }
+    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory.current")
+        && let Ok(bytes) = raw.parse::<u64>()
+    {
+        return Some(bytes);
     }
-    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory/memory.usage_in_bytes") {
-        if let Ok(bytes) = raw.parse::<u64>() {
-            return Some(bytes);
-        }
+    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory/memory.usage_in_bytes")
+        && let Ok(bytes) = raw.parse::<u64>()
+    {
+        return Some(bytes);
     }
     None
 }
@@ -258,31 +258,31 @@ pub fn current_usage_bytes() -> Option<u64> {
 fn read_memory_limit(host_bytes: u64) -> ResolvedLimit<u64> {
     // v2 first: the unified hierarchy is what every current runtime mounts. "max" is the literal
     // string the kernel writes for "no limit".
-    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory.max") {
-        if raw != "max" {
-            if let Ok(bytes) = raw.parse::<u64>() {
-                // A limit at or above host memory is not a limit: some runtimes write the host
-                // total rather than "max". Reporting it as a container limit would qualify a
-                // figure that needs no qualification.
-                if bytes > 0 && (host_bytes == 0 || bytes < host_bytes) {
-                    return ResolvedLimit {
-                        value: bytes,
-                        source: LimitSource::CgroupV2,
-                    };
-                }
-            }
-        }
+    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory.max")
+        && raw != "max"
+        && let Ok(bytes) = raw.parse::<u64>()
+        // A limit at or above host memory is not a limit: some runtimes write the host
+        // total rather than "max". Reporting it as a container limit would qualify a
+        // figure that needs no qualification.
+        && bytes > 0
+        && (host_bytes == 0 || bytes < host_bytes)
+    {
+        return ResolvedLimit {
+            value: bytes,
+            source: LimitSource::CgroupV2,
+        };
     }
 
-    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory/memory.limit_in_bytes") {
-        if let Ok(bytes) = raw.parse::<u64>() {
-            if bytes > 0 && bytes != V1_UNLIMITED && (host_bytes == 0 || bytes < host_bytes) {
-                return ResolvedLimit {
-                    value: bytes,
-                    source: LimitSource::CgroupV1,
-                };
-            }
-        }
+    if let Some(raw) = read_trimmed("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+        && let Ok(bytes) = raw.parse::<u64>()
+        && bytes > 0
+        && bytes != V1_UNLIMITED
+        && (host_bytes == 0 || bytes < host_bytes)
+    {
+        return ResolvedLimit {
+            value: bytes,
+            source: LimitSource::CgroupV1,
+        };
     }
 
     ResolvedLimit::host(host_bytes)
@@ -293,19 +293,18 @@ fn read_cpu_limit(host_cpus: f64) -> ResolvedLimit<f64> {
     // v2 `cpu.max` is "QUOTA PERIOD", e.g. "150000 100000" for 1.5 CPUs, or "max 100000".
     if let Some(raw) = read_trimmed("/sys/fs/cgroup/cpu.max") {
         let mut parts = raw.split_whitespace();
-        if let (Some(quota), Some(period)) = (parts.next(), parts.next()) {
-            if quota != "max" {
-                if let (Ok(quota), Ok(period)) = (quota.parse::<f64>(), period.parse::<f64>()) {
-                    if quota > 0.0 && period > 0.0 {
-                        let cpus = quota / period;
-                        if cpus > 0.0 && cpus < host_cpus {
-                            return ResolvedLimit {
-                                value: cpus,
-                                source: LimitSource::CgroupV2,
-                            };
-                        }
-                    }
-                }
+        if let (Some(quota), Some(period)) = (parts.next(), parts.next())
+            && quota != "max"
+            && let (Ok(quota), Ok(period)) = (quota.parse::<f64>(), period.parse::<f64>())
+            && quota > 0.0
+            && period > 0.0
+        {
+            let cpus = quota / period;
+            if cpus > 0.0 && cpus < host_cpus {
+                return ResolvedLimit {
+                    value: cpus,
+                    source: LimitSource::CgroupV2,
+                };
             }
         }
     }
@@ -318,10 +317,16 @@ fn read_cpu_limit(host_cpus: f64) -> ResolvedLimit<f64> {
     if let (Some(quota), Some(period)) = (quota, period) {
         // -1 is v1's "no quota".
         if quota > 0 && period > 0 {
-            // Both values are guaranteed positive at this point, so i64→u64 is safe.
+            // Both values are guaranteed positive at this point, so i64→u64 is
+            // safe. try_from cannot fail given the guard above; a failure would
+            // mean the value changed between the guard and here, so fall back to
+            // host capacity rather than emit a wrong verdict.
+            let (Ok(quota), Ok(period)) = (u64::try_from(quota), u64::try_from(period)) else {
+                return ResolvedLimit::host(host_cpus);
+            };
             // u64_to_f64 is the crate's sanctioned conversion for bounded host values.
-            let cpus = oxmgr_core::numeric::u64_to_f64(quota as u64)
-                / oxmgr_core::numeric::u64_to_f64(period as u64);
+            let cpus =
+                oxmgr_core::numeric::u64_to_f64(quota) / oxmgr_core::numeric::u64_to_f64(period);
             if cpus > 0.0 && cpus < host_cpus {
                 return ResolvedLimit {
                     value: cpus,

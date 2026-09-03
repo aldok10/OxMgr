@@ -267,7 +267,6 @@ pub enum BusEvent {
 }
 
 impl BusEvent {
-    #[cfg_attr(not(unix), allow(dead_code))]
     pub fn event_name(&self) -> &'static str {
         match self {
             BusEvent::ProcessStarted { .. } => "process:started",
@@ -288,7 +287,6 @@ impl BusEvent {
         }
     }
 
-    #[cfg_attr(not(unix), allow(dead_code))]
     pub fn process_name(&self) -> Option<&str> {
         match self {
             BusEvent::ProcessStarted { process, .. }
@@ -516,7 +514,6 @@ impl BusEvent {
 /// `subscribe` list subscribes to all events. A `null` `process` field matches
 /// all processes.
 // The event socket subscription protocol is only served on Unix platforms.
-#[cfg_attr(not(unix), allow(dead_code))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EventFilter {
     /// Event name patterns to subscribe to.
@@ -532,7 +529,6 @@ pub struct EventFilter {
 
 impl EventFilter {
     /// Returns `true` if `event` should be delivered to a client with this filter.
-    #[cfg_attr(not(unix), allow(dead_code))]
     pub fn matches(&self, event: &BusEvent) -> bool {
         let event_name = event.event_name();
         let event_ok =
@@ -552,7 +548,6 @@ impl EventFilter {
 
 /// Supports `*` (match all), `prefix:*` (match any event in that namespace),
 /// and exact string equality.
-#[cfg_attr(not(unix), allow(dead_code))]
 fn glob_matches(pattern: &str, value: &str) -> bool {
     if pattern == "*" {
         return true;

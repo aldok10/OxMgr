@@ -84,7 +84,12 @@ impl ShutdownListener {
     /// Non-Unix fallback: only Ctrl-C is available.
     #[cfg(not(unix))]
     pub async fn recv(&mut self) -> &'static str {
-        let _ = tokio::signal::ctrl_c().await;
+        // Ctrl-C is the only shutdown signal on non-Unix platforms. The result
+        // is intentionally discarded: there is nothing to recover if the
+        // handler cannot be installed, so we just wait.
+        if tokio::signal::ctrl_c().await.is_err() {
+            // No recovery path; Ctrl-C is best-effort on non-Unix.
+        }
         "CTRL-C"
     }
 }
