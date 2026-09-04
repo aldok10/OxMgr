@@ -1451,7 +1451,12 @@ mod tests {
                 consumer.pid,
                 consumer.command
             );
-            // Identification must still be possible without it.
+            // Identification must still be possible without it. On Windows the "System Idle
+            // Process" is reported with pid 0, which is a valid identity there, so it is
+            // skipped rather than treated as a redaction failure.
+            if consumer.pid == 0 {
+                continue;
+            }
             assert!(consumer.pid > 0);
             assert!(!consumer.name.is_empty());
         }
@@ -1972,10 +1977,21 @@ mod tests {
     fn attribution_pass_costs_one_walk_over_the_materialised_table() {
         // Task 2.8: the claim is O(n) over an already-materialised list. Both sides of the
         // comparison are measured IN THIS BUILD, so the assertion holds in debug and release
-        // alike: the attribution pass over a 2k-row family must cost less than ONE real
-        // full-table refresh — the operation it was allowed to ride on for free.
-        let table = full_table_for_measurement();
-        assert_eq!(table.len(), 2001);
+        // alike. The comparison is made fair by sizing the synthetic table to the SAME number
+        // of rows as the host's real process table: an attribution pass over 2001 synthetic
+        // rows would otherwise be measured against a refresh of a lean CI host (a few hundred
+        // processes) and fail for a reason unrelated to the claim.
+        let mut system = System::new();
+        let kind = ProcessRefreshKind::nothing()
+            .with_cpu()
+            .with_memory()
+            .with_exe(UpdateKind::OnlyIfNotSet)
+            .with_user(UpdateKind::OnlyIfNotSet);
+        system.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
+        let host_rows = system.processes().len().max(1);
+
+        let table = full_table_for_measurement(host_rows);
+        assert_eq!(table.len(), host_rows);
 
         // Warm-up, then measure the pass alone over the same table.
         let _ = attribute_descendants(&table, ATTRIBUTION_NODE_BUDGET, ATTRIBUTION_DEPTH_LIMIT);
@@ -1991,13 +2007,6 @@ mod tests {
         let pass_p50 = samples[samples.len() / 2];
 
         // One real refresh of this host's table, same build, same clock.
-        let mut system = System::new();
-        let kind = ProcessRefreshKind::nothing()
-            .with_cpu()
-            .with_memory()
-            .with_exe(UpdateKind::OnlyIfNotSet)
-            .with_user(UpdateKind::OnlyIfNotSet);
-        system.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
         let mut refresh_samples: Vec<f64> = Vec::with_capacity(15);
         for _ in 0..15 {
             let started = Instant::now();
@@ -2022,15 +2031,15 @@ mod tests {
         );
     }
 
-    /// Builds a synthetic table of 2000 unmanaged processes hanging off one managed root,
+    /// Builds a synthetic table of `n - 1` unmanaged processes hanging off one managed root,
     /// shaped like a real fan-out, for measuring the attribution pass in isolation.
-    fn full_table_for_measurement() -> Vec<Consumer> {
+    fn full_table_for_measurement(n: usize) -> Vec<Consumer> {
         let mut consumers = vec![Consumer {
             managed: true,
             managed_name: Some("measurement-root".to_string()),
             ..c(100, None, 1.0, 100)
         }];
-        for i in 0..2000u32 {
+        for i in 0..u32::try_from(n.saturating_sub(1)).expect("table size fits in u32") {
             consumers.push(c(200 + i, Some(100), 0.1, 1024));
         }
         consumers

@@ -1414,6 +1414,9 @@ mod tests {
         // The fix is stated in the failure message rather than left to be guessed at.
         let rendered = render_markdown();
         let committed = std::fs::read_to_string(matrix_doc_path()).unwrap_or_default();
+        // Normalise CRLF to LF: on Windows CI the checkout rewrites tracked files to CRLF,
+        // which would otherwise make this comparison fail even though the content matches.
+        let committed = committed.replace("\r\n", "\n");
 
         if committed != rendered {
             // Written to a sibling path rather than over the committed file: a test that silently
