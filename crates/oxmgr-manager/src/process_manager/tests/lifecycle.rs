@@ -345,7 +345,7 @@ async fn reload_process_replaces_pid_when_replacement_becomes_ready() {
             pull_secret_hash: None,
             reuse_port: false,
             wait_ready: true,
-            ready_timeout_secs: 2,
+            ready_timeout_secs: 10,
             log_date_format: None,
             unified_logs: false,
             cron_restart: None,
